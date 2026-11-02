@@ -15,6 +15,8 @@
   <!-- A-Frame & MindAR (always loaded, AR scene created on-demand) -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- QRCode.js for Google Lens compatibility -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <link rel="stylesheet" href="style.css">
 
@@ -121,6 +123,11 @@
       <span>Opened inside an in-app browser. Tap <strong>•••</strong> → <strong>"Open in Chrome / Safari"</strong> for camera and file features to work smoothly.</span>
     </div>
 
+    <!-- Google Lens Detection Banner -->
+    <div id="lens-banner" style="display:none; background:rgba(212, 175, 55, 0.16); border:1px solid var(--gold-primary); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:16px; text-align:center; color:var(--gold-light); font-weight:700; font-size:0.9rem; box-shadow:0 0 20px rgba(212,175,55,0.25);">
+      🔍 Google Lens Scan Detected — Auto-Playing Video Memory!
+    </div>
+
     <!-- Header -->
     <header>
       <div class="badge">
@@ -190,6 +197,17 @@
           <div class="compile-bar-track">
             <div class="compile-bar-fill" id="create-progress-fill"></div>
           </div>
+        </div>
+
+        <!-- Google Lens & Camera Scanning Option -->
+        <div style="margin-bottom:16px; background:rgba(212, 175, 55, 0.08); border:1px solid var(--surface-border); border-radius:var(--radius-md); padding:14px;">
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.88rem; font-weight:700; color:#fff;">
+            <input type="checkbox" id="chk-google-lens" checked style="accent-color:var(--gold-primary); width:18px; height:18px;">
+            <span>🔍 Enable Google Lens &amp; Phone Camera Scanning</span>
+          </label>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; padding-left:28px; line-height:1.45;">
+            Adds a clean, subtle scan tag in the corner of your photo. When anyone points <strong>Google Lens</strong>, <strong>Google Photos</strong>, or their phone's camera at the printed picture, the video automatically plays!
+          </p>
         </div>
 
         <!-- Mandatory Generate Button -->

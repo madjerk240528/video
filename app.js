@@ -50,6 +50,8 @@ const createVideoInfo    = document.getElementById('create-video-info');
 
 const btnGenerateAr      = document.getElementById('btn-generate-ar');
 const generateHint       = document.getElementById('generate-hint');
+const chkGoogleLens      = document.getElementById('chk-google-lens');
+const lensBanner         = document.getElementById('lens-banner');
 const createProgressBox  = document.getElementById('create-progress-box');
 const createProgressFill = document.getElementById('create-progress-fill');
 const createProgressText = document.getElementById('create-progress-text');
@@ -101,6 +103,16 @@ const inappBanner        = document.getElementById('inapp-banner');
   const ua = navigator.userAgent || '';
   if (/(FBAN|FBAV|Instagram|TikTok|MicroMessenger|Line|Twitter|Snapchat)/i.test(ua)) {
     inappBanner && inappBanner.classList.add('active');
+  }
+
+  // Detect Google Lens or Camera QR Scan URL: ?lens=1 or ?autoplay=1
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('lens') || params.get('autoplay') === '1') {
+    if (lensBanner) lensBanner.style.display = 'block';
+    // Switch directly to View tab and auto-play video
+    switchTab('view');
+    const videoSrc = 'video.mp4';
+    loadVideoIntoViewPlayer(videoSrc, "Google Lens Scan", "Auto-playing living memory");
   }
 })();
 
@@ -209,20 +221,35 @@ async function generateARPhoto() {
   btnGenerateAr.disabled = true;
   createProgressBox.classList.add('active');
   createProgressFill.style.width = '10%';
-  createProgressText.textContent = 'Analyzing photo for 3D tracking... (Step 1/2)';
+  createProgressText.textContent = 'Preparing photo for AR tracking...';
 
   try {
+    let finalPhotoFile = currentPhotoFile;
+    let finalPhotoDataUrl = currentPhotoDataUrl;
+
+    // Optional: Add subtle Google Lens & camera QR tag so Lens can instantly scan and auto-play
+    if (chkGoogleLens && chkGoogleLens.checked) {
+      createProgressText.textContent = 'Adding Google Lens scan tag to photo...';
+      const targetUrl = window.location.origin + window.location.pathname.replace(/\/+$/, '') + '/?lens=1&autoplay=1';
+      const stampedBlob = await stampGoogleLensQR(currentPhotoDataUrl, targetUrl);
+      if (stampedBlob) {
+        finalPhotoFile = new File([stampedBlob], currentPhotoFile.name, { type: 'image/png' });
+        finalPhotoDataUrl = await fileToDataUrl(stampedBlob);
+      }
+    }
+
     // 1. Compile photo for MindAR tracking
+    createProgressText.textContent = 'Compiling 3D AR tracking features... (Step 1/2)';
     const compiler = new Compiler();
     const imgElement = new Image();
-    imgElement.src = currentPhotoDataUrl;
+    imgElement.src = finalPhotoDataUrl;
     await new Promise((resolve, reject) => {
       imgElement.onload = resolve;
       imgElement.onerror = reject;
     });
 
     await compiler.compileImageTargets([imgElement], (pct) => {
-      const scaledPct = Math.round(10 + (pct * 0.7)); // 10% to 80%
+      const scaledPct = Math.round(15 + (pct * 0.65)); // 15% to 80%
       createProgressFill.style.width = `${scaledPct}%`;
       createProgressText.textContent = `Compiling AR tracking features: ${Math.round(pct)}%`;
     });
@@ -235,7 +262,7 @@ async function generateARPhoto() {
     createProgressFill.style.width = '85%';
     createProgressText.textContent = 'Embedding video data inside photo... (Step 2/2)';
 
-    generatedMagicBlob = await packMagicPhoto(currentPhotoFile, currentVideoFile);
+    generatedMagicBlob = await packMagicPhoto(finalPhotoFile, currentVideoFile);
     if (generatedMagicBlobUrl) URL.revokeObjectURL(generatedMagicBlobUrl);
     generatedMagicBlobUrl = URL.createObjectURL(generatedMagicBlob);
 
@@ -244,7 +271,7 @@ async function generateARPhoto() {
 
     // Brief delay for smooth UI feedback then transition to Result
     setTimeout(() => {
-      showResultView(imgElement);
+      showResultView(imgElement, finalPhotoDataUrl);
     }, 600);
 
   } catch (err) {
@@ -255,18 +282,118 @@ async function generateARPhoto() {
   }
 }
 
-function showResultView(imgElement) {
+function showResultView(imgElement, displayPhotoUrl) {
   createFormView.style.display = 'none';
   createResultView.style.display = 'block';
 
   // Display result photo
-  resultPhotoImg.src = currentPhotoDataUrl;
+  resultPhotoImg.src = displayPhotoUrl || currentPhotoDataUrl;
   const isPortrait = imgElement.naturalHeight >= imgElement.naturalWidth;
   resultPhotoMeta.textContent = `${imgElement.naturalWidth}×${imgElement.naturalHeight} • ${isPortrait ? 'Portrait' : 'Landscape'} • Video Inside: ${formatBytes(currentVideoFile.size)}`;
 
   // Set download button
   btnDownloadResult.href = generatedMagicBlobUrl;
   btnDownloadResult.download = `MagicPhoto_${Date.now()}.png`;
+}
+
+// ========================================================
+//  GOOGLE LENS WATERMARK STAMPING
+// ========================================================
+function stampGoogleLensQR(imageSrc, targetUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+
+      // Draw original photo
+      ctx.drawImage(img, 0, 0);
+
+      // Create temporary QR container
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
+
+      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+      const qrSize = Math.max(100, Math.round(minDim * 0.16));
+
+      try {
+        if (typeof QRCode === 'undefined') {
+          tempDiv.remove();
+          resolve(null);
+          return;
+        }
+
+        new QRCode(tempDiv, {
+          text: targetUrl,
+          width: qrSize,
+          height: qrSize,
+          colorDark: "#120d03",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        setTimeout(() => {
+          const qrCanvas = tempDiv.querySelector('canvas') || tempDiv.querySelector('img');
+          if (qrCanvas) {
+            const pad = Math.round(qrSize * 0.12);
+            const boxW = qrSize + (pad * 2);
+            const boxH = qrSize + (pad * 2);
+            const x = canvas.width - boxW - Math.round(canvas.width * 0.03);
+            const y = canvas.height - boxH - Math.round(canvas.height * 0.03);
+
+            // Subtle luxury badge background
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            roundRect(ctx, x, y, boxW, boxH, Math.max(6, Math.round(pad * 0.6)));
+            ctx.fill();
+
+            // Gold border
+            ctx.lineWidth = Math.max(2, Math.round(minDim * 0.003));
+            ctx.strokeStyle = "rgba(212, 175, 55, 0.85)";
+            ctx.stroke();
+
+            // Draw QR code inside
+            ctx.drawImage(qrCanvas, x + pad, y + pad, qrSize, qrSize);
+            ctx.restore();
+          }
+          tempDiv.remove();
+
+          canvas.toBlob((blob) => {
+            resolve(blob);
+          }, 'image/png');
+        }, 120);
+
+      } catch (err) {
+        console.warn('QR generation fallback:', err);
+        tempDiv.remove();
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageSrc;
+  });
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 // Reset creation to make another AR photo
