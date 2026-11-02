@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Creator Studio - AR Photo & QR Generator</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚙️</text></svg>">
+  
+  <!-- QR Code Generator Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --accent: #06b6d4;
+      --bg: #090d16;
+      --surface: #111827;
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f9fafb;
+      --text-muted: #9ca3af;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 1.7rem;
+      background: linear-gradient(135deg, #fff 40%, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .back-link {
+      color: #818cf8;
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      padding: 6px 14px;
+      border-radius: 999px;
+    }
+
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #e5e7eb;
+    }
+
+    input[type="text"], input[type="url"], select {
+      width: 100%;
+      background: #030712;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 0.95rem;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .drop-zone {
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #4f46e5; }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.16); }
+
+    .btn-accent {
+      background: #0284c7;
+      color: #fff;
+    }
+
+    .btn-accent:hover { background: #0369a1; }
+
+    /* Print Preview Card Layouts */
+    .preview-canvas-wrapper {
+      background: #000;
+      padding: 24px;
+      border-radius: var(--radius);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .printable-card {
+      background: #ffffff;
+      color: #111;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    /* Style 1: Modern with subtle corner QR */
+    .style-corner {
+      width: 360px;
+      max-width: 100%;
+      aspect-ratio: 4 / 5;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .style-corner .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+
+    .style-corner .card-qr {
+      position: absolute;
+      bottom: 18px;
+      right: 18px;
+      background: #fff;
+      padding: 4px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      width: 60px;
+      height: 60px;
+    }
+
+    /* Style 2: Classic Polaroid */
+    .style-polaroid {
+      width: 320px;
+      max-width: 100%;
+      padding: 16px 16px 24px 16px;
+      border-radius: 4px;
+    }
+
+    .style-polaroid .card-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+    }
+
+    .style-polaroid .polaroid-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding: 0 4px;
+    }
+
+    .style-polaroid .polaroid-caption {
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .style-polaroid .card-qr {
+      width: 52px;
+      height: 52px;
+      background: #fff;
+    }
+
+    /* Target compiler progress */
+    .progress-bar-container {
+      display: none;
+      margin-top: 14px;
+      background: #1f2937;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.1s ease;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      .printable-card, .printable-card * { visibility: visible; }
+      .printable-card {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div>
+        <h1>Creator Studio & QR Print Assistant</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Generate your QR code, compile targets for AR, and create printable cards.</p>
+      </div>
+      <a href="index.html" class="back-link">← Return to Experience</a>
+    </header>
+
+    <!-- Step 1: GitHub Pages Link -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>🔗</span>
+        <span>1. Enter Your Permanent GitHub Pages Link</span>
+      </div>
+      <p class="section-desc">This is the permanent link generated by GitHub Pages (e.g., <code>https://yourusername.github.io/ar-photo-video/</code>). When scanned by Google Photos or standard camera, it will load your page instantly.</p>
+      
+      <div class="form-group">
+        <label for="gh-url">Your Website URL:</label>
+        <input type="url" id="gh-url" placeholder="https://username.github.io/ar-photo-video/" value="https://username.github.io/ar-photo-video/">
+      </div>
+      
+      <button id="btn-update-qr" class="btn btn-primary">Update QR Code</button>
+    </div>
+
+    <!-- Step 2: MindAR Targets Compiler (.mind file) -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>🎯</span>
+        <span>2. Compile Photo for AR Tracking (targets.mind)</span>
+      </div>
+      <p class="section-desc">MindAR requires your photo to be compiled into a lightweight feature map (<code>targets.mind</code>) so your phone can track the printed picture in 3D AR at 60 FPS.</p>
+
+      <div class="drop-zone" id="compiler-drop-zone">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">🖼️</div>
+        <p style="font-weight: 600; margin-bottom: 4px;">Select or drop your photo to compile</p>
+        <p style="color: var(--text-muted); font-size: 0.8rem;">Supports JPG, PNG (Recommended high contrast & detail)</p>
+        <input type="file" id="file-compiler-input" accept="image/*" style="display: none;">
+      </div>
+
+      <div class="progress-bar-container" id="compiler-progress">
+        <div class="progress-bar-fill" id="compiler-progress-fill"></div>
+      </div>
+      
+      <div id="compiler-status" style="margin-top: 10px; font-size: 0.88rem; color: #a5b4fc;"></div>
+
+      <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <button id="btn-start-compile" class="btn btn-accent" style="display: none;">Compile targets.mind</button>
+        <a id="btn-download-mind" class="btn btn-primary" style="display: none;" download="targets.mind">⬇ Download targets.mind</a>
+        <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" class="btn btn-secondary">
+          🌐 MindAR Official Online Compiler ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Step 3: Card & Printable Layout Generator -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>🖨️</span>
+        <span>3. Generate Printable Card with QR Code</span>
+      </div>
+      <p class="section-desc">Choose a template to print. When someone scans it with <strong>Google Photos</strong>, <strong>Google Lens</strong>, or an <strong>iPhone/Android Camera</strong>, it opens your site and triggers the AR video.</p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px;">
+        <div class="form-group">
+          <label for="card-style">Template Style:</label>
+          <select id="card-style">
+            <option value="corner">Full Photo + Subtle Corner QR</option>
+            <option value="polaroid">Classic Polaroid with Caption</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="card-caption-input">Caption / Title:</label>
+          <input type="text" id="card-caption-input" value="Always Remembered • 2026">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <button id="btn-print" class="btn btn-primary">🖨️ Print / Save as PDF</button>
+      </div>
+
+      <!-- Preview Canvas -->
+      <div class="preview-canvas-wrapper">
+        <div id="printable-card" class="printable-card style-corner">
+          <img id="card-preview-img" class="card-img" src="./photo.jpg" alt="Target Photo" onerror="this.src='./photo.png'">
+          
+          <!-- QR container -->
+          <div id="qr-box" class="card-qr"></div>
+          
+          <!-- Polaroid elements -->
+          <div class="polaroid-bottom" id="polaroid-footer" style="display: none;">
+            <div class="polaroid-caption" id="polaroid-text">Always Remembered • 2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Step-by-Step GitHub Pages Setup Guide -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>🚀</span>
+        <span>4. Permanent Link Setup on GitHub (Free Forever)</span>
+      </div>
+      <ol style="padding-left: 20px; color: var(--text-muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px;">
+        <li>Create a new repository on <a href="https://github.com/new" target="_blank" style="color: #818cf8;">GitHub.com</a> (e.g. named <code>living-memory</code>).</li>
+        <li>Upload all files from this folder into the repository.</li>
+        <li>Replace <code>photo.jpg</code> and <code>video.mp4</code> with your own photo and video.</li>
+        <li>Put the compiled <code>targets.mind</code> file into the repository root.</li>
+        <li>In your repository, click <strong>Settings</strong> → <strong>Pages</strong>.</li>
+        <li>Under <strong>Branch</strong>, select <code>main</code> and folder <code>/ (root)</code>, then click <strong>Save</strong>.</li>
+        <li>Within 1-2 minutes, GitHub gives you your permanent HTTPS link: <code>https://&lt;your-username&gt;.github.io/&lt;repo-name&gt;/</code>!</li>
+      </ol>
+    </div>
+
+  </div>
+
+  <!-- Client-side MindAR Compiler Module -->
+  <script type="module">
+    import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+
+    const dropZone = document.getElementById('compiler-drop-zone');
+    const fileInput = document.getElementById('file-compiler-input');
+    const btnCompile = document.getElementById('btn-start-compile');
+    const btnDownload = document.getElementById('btn-download-mind');
+    const progressContainer = document.getElementById('compiler-progress');
+    const progressBar = document.getElementById('compiler-progress-fill');
+    const compilerStatus = document.getElementById('compiler-status');
+    const cardPreviewImg = document.getElementById('card-preview-img');
+
+    let selectedImageFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleImageFile(e.target.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'var(--primary)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.borderColor = '';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = '';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleImageFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleImageFile(file) {
+      selectedImageFile = file;
+      btnCompile.style.display = 'inline-flex';
+      btnDownload.style.display = 'none';
+      compilerStatus.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Ready to compile.`;
+
+      // Update card preview
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        cardPreviewImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    btnCompile.addEventListener('click', async () => {
+      if (!selectedImageFile) return;
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      compilerStatus.textContent = 'Compiling image tracking features... (takes 5-15 seconds)';
+      btnCompile.disabled = true;
+
+      try {
+        const compiler = new Compiler();
+        
+        // Load image as HTMLImageElement
+        const img = new Image();
+        img.src = URL.createObjectURL(selectedImageFile);
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+
+        // Compile targets with progress callback
+        await compiler.compileImageTargets([img], (percent) => {
+          progressBar.style.width = `${percent.toFixed(1)}%`;
+          compilerStatus.textContent = `Processing tracking points: ${percent.toFixed(0)}%`;
+        });
+
+        const exportedBuffer = await compiler.exportData();
+        const blob = new Blob([exportedBuffer]);
+        const url = URL.createObjectURL(blob);
+
+        btnDownload.href = url;
+        btnDownload.style.display = 'inline-flex';
+        compilerStatus.textContent = '✅ Compilation Complete! Click "Download targets.mind" below.';
+      } catch (err) {
+        console.error('Compiler error:', err);
+        compilerStatus.textContent = '⚠️ Browser compilation ran into an issue. You can use the official MindAR Online Compiler button below!';
+      } finally {
+        btnCompile.disabled = false;
+      }
+    });
+  </script>
+
+  <!-- QR and Card Preview Logic -->
+  <script>
+    let qr = null;
+
+    function renderQR() {
+      const url = document.getElementById('gh-url').value || window.location.href;
+      const qrBox = document.getElementById('qr-box');
+      qrBox.innerHTML = '';
+      
+      qr = new QRCode(qrBox, {
+        text: url,
+        width: 120,
+        height: 120,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    document.getElementById('btn-update-qr').addEventListener('click', renderQR);
+
+    // Initial QR render
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set default URL to current URL if hosted
+      if (window.location.protocol.startsWith('http')) {
+        document.getElementById('gh-url').value = window.location.href.split('studio.html')[0];
+      }
+      renderQR();
+    });
+
+    // Card style switcher
+    const cardStyleSelect = document.getElementById('card-style');
+    const printableCard = document.getElementById('printable-card');
+    const polaroidFooter = document.getElementById('polaroid-footer');
+    const qrBox = document.getElementById('qr-box');
+    const captionInput = document.getElementById('card-caption-input');
+    const polaroidText = document.getElementById('polaroid-text');
+
+    captionInput.addEventListener('input', () => {
+      polaroidText.textContent = captionInput.value;
+    });
+
+    cardStyleSelect.addEventListener('change', () => {
+      if (cardStyleSelect.value === 'polaroid') {
+        printableCard.className = 'printable-card style-polaroid';
+        polaroidFooter.style.display = 'flex';
+        polaroidFooter.appendChild(qrBox);
+      } else {
+        printableCard.className = 'printable-card style-corner';
+        polaroidFooter.style.display = 'none';
+        printableCard.appendChild(qrBox);
+      }
+    });
+
+    // Print button
+    document.getElementById('btn-print').addEventListener('click', () => {
+      window.print();
+    });
+  </script>
+
+</body>
+</html>
