@@ -1,235 +1,462 @@
-document.addEventListener('DOMContentLoaded', () => {
-  // Elements
-  const appContainer = document.getElementById('app-container');
-  const arContainer = document.getElementById('ar-container');
-  const arScene = document.getElementById('ar-scene');
-  const arAnchor = document.getElementById('ar-anchor');
-  const arVideo = document.getElementById('ar-video-asset');
-  const arVideoMesh = document.getElementById('ar-video-mesh');
-  
-  const btnStartAr = document.getElementById('btn-start-ar');
-  const btnExitAr = document.getElementById('btn-exit-ar');
-  const btnToggleSound = document.getElementById('btn-toggle-sound');
-  const soundIcon = document.getElementById('sound-icon');
-  const tapUnmutePill = document.getElementById('tap-unmute-pill');
-  
-  const promptPill = document.getElementById('prompt-pill');
-  const promptIcon = document.getElementById('prompt-icon');
-  const promptText = document.getElementById('prompt-text');
-  const scanLaser = document.getElementById('scan-laser');
-  const reticleBox = document.getElementById('reticle-box');
+// ========================================================
+//  Living Memory AR — app.js (ES Module)
+//  User uploads photo + video → compiles in-browser → AR
+// ========================================================
+import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
 
-  const btnDirectPlay = document.getElementById('btn-direct-play');
-  const previewBox = document.getElementById('preview-box');
-  const videoModal = document.getElementById('video-modal');
-  const btnCloseModal = document.getElementById('btn-close-modal');
-  const directVideo = document.getElementById('direct-video');
+// ---- State ----
+let userPhotoDataUrl = null;  // data:image URL of the uploaded photo
+let userVideoObjectUrl = null; // object URL of the uploaded video
+let compiledMindBuffer = null; // ArrayBuffer of compiled .mind data
+let compiledMindObjectUrl = null; // Object URL for the .mind file
 
-  const permissionModal = document.getElementById('permission-modal');
-  const btnModalWatchDirect = document.getElementById('btn-modal-watch-direct');
-  const btnModalCloseGuide = document.getElementById('btn-modal-close-guide');
-  const inappBanner = document.getElementById('inapp-banner');
+let isArRunning = false;
+let isMuted = true;
+let arScene = null;
+let arAnchor = null;
+let arVideo = null;
+let arVideoMesh = null;
+let textureSyncInterval = null;
 
-  let isArRunning = false;
-  let isMuted = true; // Default to true on mobile to guarantee autoplay policies pass
+// ---- Element References ----
+const photoBox       = document.getElementById('photo-box');
+const photoInput     = document.getElementById('photo-input');
+const photoThumb     = document.getElementById('photo-thumb');
+const videoBox       = document.getElementById('video-box');
+const videoInput     = document.getElementById('video-input');
+const videoThumb     = document.getElementById('video-thumb');
 
-  // 1. Detect In-App Browsers (where camera is often disabled by the parent app)
-  function checkInAppBrowser() {
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
-    const isInApp = /(FBAN|FBAV|Instagram|TikTok|MicroMessenger|Line|Twitter|Snapchat)/i.test(ua);
-    if (isInApp && inappBanner) {
-      inappBanner.classList.add('active');
-    }
+const compileBarWrap = document.getElementById('compile-bar-wrap');
+const compileBarFill = document.getElementById('compile-bar-fill');
+const compileStatus  = document.getElementById('compile-status');
+
+const dot1 = document.getElementById('dot-1');
+const dot2 = document.getElementById('dot-2');
+const dot3 = document.getElementById('dot-3');
+const stepLabel = document.getElementById('step-label');
+
+const uploadSection       = document.getElementById('upload-section');
+const photoPreviewSection = document.getElementById('photo-preview-section');
+const actionButtons       = document.getElementById('action-buttons');
+const guideCard           = document.getElementById('guide-card');
+const cardPhoto           = document.getElementById('card-photo');
+const photoDims           = document.getElementById('photo-dims');
+
+const btnStartAr    = document.getElementById('btn-start-ar');
+const btnDirectPlay = document.getElementById('btn-direct-play');
+const btnStartAr2   = document.getElementById('btn-start-ar-2');
+const btnDirectPlay2 = document.getElementById('btn-direct-play-2');
+const btnChangeFiles = document.getElementById('btn-change-files');
+
+const arContainer    = document.getElementById('ar-container');
+const btnExitAr      = document.getElementById('btn-exit-ar');
+const btnToggleSound = document.getElementById('btn-toggle-sound');
+const soundIcon      = document.getElementById('sound-icon');
+const tapUnmutePill  = document.getElementById('tap-unmute-pill');
+const promptPill     = document.getElementById('prompt-pill');
+const promptIcon     = document.getElementById('prompt-icon');
+const promptText     = document.getElementById('prompt-text');
+const scanLaser      = document.getElementById('scan-laser');
+const reticleBox     = document.getElementById('reticle-box');
+
+const videoModal     = document.getElementById('video-modal');
+const directVideo    = document.getElementById('direct-video');
+const btnCloseModal  = document.getElementById('btn-close-modal');
+const permissionModal = document.getElementById('permission-modal');
+const btnModalWatchDirect = document.getElementById('btn-modal-watch-direct');
+const btnModalCloseGuide  = document.getElementById('btn-modal-close-guide');
+const inappBanner    = document.getElementById('inapp-banner');
+const appContainer   = document.getElementById('app-container');
+
+// ---- Detect In-App Browser ----
+(function checkInApp() {
+  const ua = navigator.userAgent || '';
+  if (/(FBAN|FBAV|Instagram|TikTok|MicroMessenger|Line|Twitter|Snapchat)/i.test(ua)) {
+    inappBanner && inappBanner.classList.add('active');
   }
-  checkInAppBrowser();
+})();
 
-  // 2. Auto-adjust AR video mesh & reticle to match photo & video aspect ratio
-  const cardPhoto = document.getElementById('card-photo');
+// ========================================================
+//  UPLOAD: Photo
+// ========================================================
+photoBox.addEventListener('click', () => photoInput.click());
+photoInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handlePhotoFile(e.target.files[0]);
+});
 
-  function adjustDimensions() {
-    let targetRatio = 1.333; // Default 4:3 portrait
+// Drag & drop on phone (desktop only, mobile uses tap)
+photoBox.addEventListener('dragover', (e) => { e.preventDefault(); photoBox.classList.add('dragover'); });
+photoBox.addEventListener('dragleave', () => photoBox.classList.remove('dragover'));
+photoBox.addEventListener('drop', (e) => {
+  e.preventDefault(); photoBox.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handlePhotoFile(e.dataTransfer.files[0]);
+});
 
-    if (cardPhoto && cardPhoto.naturalWidth && cardPhoto.naturalHeight) {
-      targetRatio = cardPhoto.naturalHeight / cardPhoto.naturalWidth;
-    } else if (arVideo.videoWidth && arVideo.videoHeight) {
-      targetRatio = arVideo.videoHeight / arVideo.videoWidth;
-    }
+async function handlePhotoFile(file) {
+  userPhotoDataUrl = await fileToDataUrl(file);
+  photoThumb.src = userPhotoDataUrl;
+  photoBox.classList.add('done');
+  checkBothUploaded();
+}
 
-    // In MindAR coordinate system: width is normalized to 1, height is height/width ratio
-    arVideoMesh.setAttribute('width', '1');
-    arVideoMesh.setAttribute('height', targetRatio.toFixed(4));
+// ========================================================
+//  UPLOAD: Video
+// ========================================================
+videoBox.addEventListener('click', () => videoInput.click());
+videoInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleVideoFile(e.target.files[0]);
+});
 
-    // Adapt the mobile camera reticle frame to match portrait vs landscape photo
-    if (reticleBox) {
-      if (targetRatio >= 1) {
-        // Portrait Photo (height > width)
-        reticleBox.style.width = '260px';
-        reticleBox.style.height = `${Math.min(window.innerHeight * 0.55, 260 * targetRatio)}px`;
-      } else {
-        // Landscape Photo (width > height)
-        reticleBox.style.width = '320px';
-        reticleBox.style.height = `${320 * targetRatio}px`;
-      }
-    }
+videoBox.addEventListener('dragover', (e) => { e.preventDefault(); videoBox.classList.add('dragover'); });
+videoBox.addEventListener('dragleave', () => videoBox.classList.remove('dragover'));
+videoBox.addEventListener('drop', (e) => {
+  e.preventDefault(); videoBox.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleVideoFile(e.dataTransfer.files[0]);
+});
+
+function handleVideoFile(file) {
+  if (userVideoObjectUrl) URL.revokeObjectURL(userVideoObjectUrl);
+  userVideoObjectUrl = URL.createObjectURL(file);
+  videoThumb.src = userVideoObjectUrl;
+  videoBox.classList.add('done');
+  checkBothUploaded();
+}
+
+// ========================================================
+//  Once BOTH are uploaded → compile the .mind file
+// ========================================================
+async function checkBothUploaded() {
+  if (!userPhotoDataUrl || !userVideoObjectUrl) return;
+  await compilePhotoForAR();
+}
+
+async function compilePhotoForAR() {
+  // Show compile progress bar
+  compileBarWrap.classList.add('active');
+  compileBarFill.style.width = '0%';
+  compileStatus.textContent = 'Analysing photo for AR tracking… (5–15 sec)';
+
+  // Update step dots
+  dot1.classList.remove('active');
+  dot2.classList.add('active');
+  stepLabel.textContent = 'Processing AR tracking…';
+  stepLabel.classList.remove('active');
+  dot2.classList.add('active');
+
+  try {
+    const compiler = new Compiler();
+
+    // Load photo as HTMLImageElement
+    const img = new Image();
+    img.src = userPhotoDataUrl;
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+
+    // Compile
+    await compiler.compileImageTargets([img], (pct) => {
+      compileBarFill.style.width = `${pct.toFixed(0)}%`;
+      compileStatus.textContent = `Processing: ${pct.toFixed(0)}% complete…`;
+    });
+
+    compiledMindBuffer = await compiler.exportData();
+    if (compiledMindObjectUrl) URL.revokeObjectURL(compiledMindObjectUrl);
+    compiledMindObjectUrl = URL.createObjectURL(new Blob([compiledMindBuffer]));
+
+    compileBarFill.style.width = '100%';
+    compileStatus.textContent = '✅ Ready! You can now scan in AR.';
+
+    // Step done
+    dot2.classList.remove('active');
+    dot3.classList.add('active');
+    stepLabel.textContent = 'Ready! Tap below to start.';
+    stepLabel.classList.add('active');
+
+    // Show preview & buttons
+    showPreviewAndButtons();
+
+  } catch (err) {
+    console.error('Compile error:', err);
+    compileStatus.textContent = '⚠️ Processing failed. Try a different photo (JPG/PNG with good contrast).';
+  }
+}
+
+function showPreviewAndButtons() {
+  // Set card photo
+  cardPhoto.src = userPhotoDataUrl;
+  cardPhoto.onload = () => {
+    const w = cardPhoto.naturalWidth;
+    const h = cardPhoto.naturalHeight;
+    const isPortrait = h >= w;
+    photoDims.textContent = `${w}×${h} • ${isPortrait ? 'Portrait' : 'Landscape'}`;
+  };
+
+  // Set direct video
+  directVideo.src = userVideoObjectUrl;
+
+  // Show photo section & action buttons, hide upload compile bar
+  compileBarWrap.classList.remove('active');
+  photoPreviewSection.style.display = 'block';
+  actionButtons.style.display = 'flex';
+  guideCard.style.display = 'none';
+
+  // On the upload card: show watch video + start AR buttons  
+  btnStartAr.style.display = 'flex';
+  btnDirectPlay.style.display = 'flex';
+}
+
+// Change files button: reset to upload view
+btnChangeFiles && btnChangeFiles.addEventListener('click', resetToUpload);
+
+function resetToUpload() {
+  userPhotoDataUrl = null;
+  userVideoObjectUrl = null;
+  compiledMindBuffer = null;
+  compiledMindObjectUrl = null;
+
+  photoBox.classList.remove('done');
+  videoBox.classList.remove('done');
+  photoThumb.src = '';
+  videoThumb.src = '';
+  photoInput.value = '';
+  videoInput.value = '';
+
+  compileBarWrap.classList.remove('active');
+  photoPreviewSection.style.display = 'none';
+  actionButtons.style.display = 'none';
+  guideCard.style.display = 'block';
+  btnStartAr.style.display = 'none';
+  btnDirectPlay.style.display = 'none';
+
+  dot1.classList.add('active');
+  dot2.classList.remove('active');
+  dot3.classList.remove('active');
+  stepLabel.textContent = 'Upload your photo & video';
+}
+
+// ========================================================
+//  START AR
+// ========================================================
+async function startAR() {
+  if (!compiledMindObjectUrl || !userVideoObjectUrl) {
+    alert('Please upload both a photo and a video first.');
+    return;
   }
 
-  if (cardPhoto) cardPhoto.addEventListener('load', adjustDimensions);
-  arVideo.addEventListener('loadedmetadata', adjustDimensions);
-  window.addEventListener('resize', adjustDimensions);
+  try {
+    // Build AR scene dynamically with user's compiled targets & video
+    buildArScene();
 
-  // 3. Keep video texture fresh on iOS Safari
-  let textureSyncInterval = null;
-  function startTextureSync() {
-    if (textureSyncInterval) clearInterval(textureSyncInterval);
-    textureSyncInterval = setInterval(() => {
-      if (isArRunning && !arVideo.paused) {
-        const mesh = arVideoMesh.getObject3D('mesh');
-        if (mesh && mesh.material && mesh.material.map) {
-          mesh.material.map.needsUpdate = true;
-        }
-      }
-    }, 1000 / 30);
-  }
+    appContainer.style.display = 'none';
+    arContainer.classList.add('active');
+    isArRunning = true;
 
-  function stopTextureSync() {
-    if (textureSyncInterval) {
-      clearInterval(textureSyncInterval);
-      textureSyncInterval = null;
-    }
-  }
+    // Wait for scene to initialise then start tracking
+    const scene = document.getElementById('ar-scene');
+    const startTracking = async () => {
+      arScene = scene;
+      arAnchor = document.getElementById('ar-anchor');
+      arVideo = document.getElementById('ar-video-asset');
+      arVideoMesh = document.getElementById('ar-video-mesh');
 
-  // 4. Start AR Mode
-  btnStartAr.addEventListener('click', async () => {
-    try {
-      // Audio pre-unlock for iOS Safari & Android Chrome
+      // Audio unlock
       arVideo.muted = true;
-      arVideo.play().then(() => {
-        arVideo.pause();
-      }).catch(() => {});
+      arVideo.play().then(() => { arVideo.pause(); arVideo.currentTime = 0; }).catch(() => {});
 
-      // Switch to AR UI
-      appContainer.style.display = 'none';
-      arContainer.classList.add('active');
-      isArRunning = true;
-
-      // Start MindAR tracking system
-      const mindarSystem = arScene.systems['mindar-image-system'];
+      const mindarSystem = scene.systems['mindar-image-system'];
       if (mindarSystem) {
         await mindarSystem.start();
         startTextureSync();
+        registerAnchorEvents();
       }
-    } catch (err) {
-      console.error('Error starting AR:', err);
-      exitArMode();
-      permissionModal.classList.add('active');
-    }
-  });
+    };
 
-  // 5. Exit AR Mode
-  function exitArMode() {
-    if (!isArRunning) return;
-    
-    stopTextureSync();
-    arVideo.pause();
-    tapUnmutePill.classList.remove('active');
-
-    const mindarSystem = arScene.systems['mindar-image-system'];
-    if (mindarSystem && mindarSystem.stop) {
-      try {
-        mindarSystem.stop();
-      } catch (e) {
-        console.warn('MindAR stop:', e);
-      }
+    if (scene.hasLoaded) {
+      await startTracking();
+    } else {
+      scene.addEventListener('loaded', startTracking, { once: true });
     }
 
-    arContainer.classList.remove('active');
-    appContainer.style.display = 'flex';
-    isArRunning = false;
+  } catch (err) {
+    console.error('AR start error:', err);
+    exitArMode();
+    permissionModal.classList.add('active');
   }
+}
 
-  btnExitAr.addEventListener('click', exitArMode);
+function buildArScene() {
+  // Remove any existing scene
+  const old = document.getElementById('ar-scene');
+  if (old) old.remove();
 
-  // 6. Sound Management
-  function setAudioState(unmute) {
-    isMuted = !unmute;
-    arVideo.muted = isMuted;
-    soundIcon.textContent = isMuted ? '🔇' : '🔊';
-    if (!isMuted) {
-      tapUnmutePill.classList.remove('active');
-    }
-  }
+  const scene = document.createElement('a-scene');
+  scene.id = 'ar-scene';
+  scene.setAttribute('mindar-image',
+    `imageTargetSrc: ${compiledMindObjectUrl}; autoStart: false; uiLoading: no; uiScanning: no;`);
+  scene.setAttribute('color-space', 'sRGB');
+  scene.setAttribute('embedded', '');
+  scene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
+  scene.setAttribute('vr-mode-ui', 'enabled: false');
+  scene.setAttribute('device-orientation-permission-ui', 'enabled: false');
 
-  btnToggleSound.addEventListener('click', () => {
-    setAudioState(isMuted);
-  });
+  // Assets
+  const assets = document.createElement('a-assets');
+  const vid = document.createElement('video');
+  vid.id = 'ar-video-asset';
+  vid.src = userVideoObjectUrl;
+  vid.setAttribute('preload', 'auto');
+  vid.setAttribute('playsinline', '');
+  vid.setAttribute('webkit-playsinline', '');
+  vid.setAttribute('muted', '');
+  vid.setAttribute('loop', '');
+  assets.appendChild(vid);
+  scene.appendChild(assets);
 
-  tapUnmutePill.addEventListener('click', () => {
-    setAudioState(true);
-  });
+  // Camera
+  const cam = document.createElement('a-camera');
+  cam.setAttribute('position', '0 0 0');
+  cam.setAttribute('look-controls', 'enabled: false');
+  scene.appendChild(cam);
 
-  // 7. MindAR Target Detection Events
+  // Target anchor + video mesh
+  const anchor = document.createElement('a-entity');
+  anchor.id = 'ar-anchor';
+  anchor.setAttribute('mindar-image-target', 'targetIndex: 0');
+  const mesh = document.createElement('a-video');
+  mesh.id = 'ar-video-mesh';
+  mesh.setAttribute('src', '#ar-video-asset');
+  mesh.setAttribute('position', '0 0 0');
+  mesh.setAttribute('width', '1');
+  mesh.setAttribute('height', '1');
+  anchor.appendChild(mesh);
+  scene.appendChild(anchor);
+
+  // Insert BEFORE the ar-overlay div
+  arContainer.insertBefore(scene, arContainer.firstChild);
+}
+
+function registerAnchorEvents() {
+  arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
+
   arAnchor.addEventListener('targetFound', () => {
-    console.log('Target Image Found! Playing video...');
-    arVideo.play().catch(e => console.log('Autoplay error:', e));
-
+    arVideo.muted = isMuted;
+    arVideo.play().catch(() => {});
     promptPill.classList.add('target-detected');
     promptIcon.textContent = '✨';
     promptText.textContent = 'Memory Playing!';
     scanLaser.style.display = 'none';
-    reticleBox.style.borderColor = '#22c55e';
-
-    // On mobile, show audio pill if muted
-    if (isMuted) {
-      tapUnmutePill.classList.add('active');
-    }
+    if (isMuted) tapUnmutePill.classList.add('active');
   });
 
   arAnchor.addEventListener('targetLost', () => {
-    console.log('Target Image Lost. Pausing video...');
     arVideo.pause();
-
     promptPill.classList.remove('target-detected');
     promptIcon.textContent = '🔍';
     promptText.textContent = 'Point camera at the photo';
     scanLaser.style.display = 'block';
-    reticleBox.style.borderColor = '';
     tapUnmutePill.classList.remove('active');
   });
+}
 
-  // 8. Direct Cinema Video Modal
-  function openDirectVideo() {
-    videoModal.classList.add('active');
-    directVideo.currentTime = 0;
-    directVideo.play().catch(() => {});
+function adjustVideoMesh() {
+  if (!arVideo || !arVideoMesh) return;
+  if (arVideo.videoWidth && arVideo.videoHeight) {
+    const aspect = arVideo.videoHeight / arVideo.videoWidth;
+    arVideoMesh.setAttribute('width', '1');
+    arVideoMesh.setAttribute('height', aspect.toFixed(4));
+  }
+}
+
+function startTextureSync() {
+  if (textureSyncInterval) clearInterval(textureSyncInterval);
+  textureSyncInterval = setInterval(() => {
+    if (isArRunning && arVideo && !arVideo.paused && arVideoMesh) {
+      const mesh = arVideoMesh.getObject3D('mesh');
+      if (mesh && mesh.material && mesh.material.map) {
+        mesh.material.map.needsUpdate = true;
+      }
+    }
+  }, 1000 / 30);
+}
+
+// ========================================================
+//  EXIT AR
+// ========================================================
+function exitArMode() {
+  if (!isArRunning) return;
+  if (textureSyncInterval) { clearInterval(textureSyncInterval); textureSyncInterval = null; }
+  if (arVideo) arVideo.pause();
+  tapUnmutePill.classList.remove('active');
+
+  if (arScene) {
+    const sys = arScene.systems['mindar-image-system'];
+    if (sys && sys.stop) { try { sys.stop(); } catch (e) {} }
   }
 
-  function closeDirectVideo() {
-    videoModal.classList.remove('active');
-    directVideo.pause();
-  }
+  arContainer.classList.remove('active');
+  appContainer.style.display = 'flex';
+  isArRunning = false;
+}
 
-  btnDirectPlay.addEventListener('click', openDirectVideo);
-  previewBox.addEventListener('click', openDirectVideo);
-  btnCloseModal.addEventListener('click', closeDirectVideo);
+// ========================================================
+//  SOUND TOGGLE
+// ========================================================
+function setAudio(unmute) {
+  isMuted = !unmute;
+  if (arVideo) arVideo.muted = isMuted;
+  soundIcon.textContent = isMuted ? '🔇' : '🔊';
+  if (!isMuted) tapUnmutePill.classList.remove('active');
+}
 
-  videoModal.addEventListener('click', (e) => {
-    if (e.target === videoModal) closeDirectVideo();
-  });
+btnToggleSound.addEventListener('click', () => setAudio(isMuted));
+tapUnmutePill.addEventListener('click', () => setAudio(true));
 
-  // 9. Camera Permission Modal Handlers
-  btnModalCloseGuide.addEventListener('click', () => {
-    permissionModal.classList.remove('active');
-  });
+// ========================================================
+//  VIDEO MODAL (Direct Play)
+// ========================================================
+function openVideoModal() {
+  if (!userVideoObjectUrl) return;
+  directVideo.src = userVideoObjectUrl;
+  videoModal.classList.add('active');
+  directVideo.currentTime = 0;
+  directVideo.play().catch(() => {});
+}
 
-  btnModalWatchDirect.addEventListener('click', () => {
-    permissionModal.classList.remove('active');
-    openDirectVideo();
-  });
+function closeVideoModal() {
+  videoModal.classList.remove('active');
+  directVideo.pause();
+}
 
-  // Handle hardware / mobile back gestures
-  window.addEventListener('popstate', () => {
-    if (isArRunning) exitArMode();
-    if (videoModal.classList.contains('active')) closeDirectVideo();
-    if (permissionModal.classList.contains('active')) permissionModal.classList.remove('active');
-  });
+// Photo preview box click → open video
+document.getElementById('preview-box').addEventListener('click', openVideoModal);
+btnCloseModal.addEventListener('click', closeVideoModal);
+videoModal.addEventListener('click', (e) => { if (e.target === videoModal) closeVideoModal(); });
+
+// ========================================================
+//  BUTTON BINDINGS
+// ========================================================
+[btnStartAr, btnStartAr2].forEach(b => b && b.addEventListener('click', startAR));
+[btnDirectPlay, btnDirectPlay2].forEach(b => b && b.addEventListener('click', openVideoModal));
+
+btnExitAr.addEventListener('click', exitArMode);
+
+btnModalCloseGuide.addEventListener('click', () => permissionModal.classList.remove('active'));
+btnModalWatchDirect.addEventListener('click', () => {
+  permissionModal.classList.remove('active');
+  openVideoModal();
 });
+
+window.addEventListener('popstate', () => {
+  if (isArRunning) exitArMode();
+  if (videoModal.classList.contains('active')) closeVideoModal();
+});
+
+// ========================================================
+//  UTIL
+// ========================================================
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
