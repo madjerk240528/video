@@ -224,28 +224,11 @@ async function generateARPhoto() {
   createProgressText.textContent = 'Preparing photo for AR tracking...';
 
   try {
-    let finalPhotoFile = currentPhotoFile;
-    let finalPhotoDataUrl = currentPhotoDataUrl;
-
-    // Check selected QR blending mode: 'ghost' (submerged) or 'none' (pure clean photo)
-    const blendModeInput = document.querySelector('input[name="qr-blend-mode"]:checked');
-    const qrMode = blendModeInput ? blendModeInput.value : 'ghost';
-
-    if (qrMode !== 'none') {
-      createProgressText.textContent = 'Submerging hidden scan code into image...';
-      const targetUrl = window.location.origin + window.location.pathname.replace(/\/+$/, '') + '/?lens=1&autoplay=1';
-      const stampedBlob = await stampSubmergedQR(currentPhotoDataUrl, targetUrl, qrMode);
-      if (stampedBlob) {
-        finalPhotoFile = new File([stampedBlob], currentPhotoFile.name, { type: 'image/png' });
-        finalPhotoDataUrl = await fileToDataUrl(stampedBlob);
-      }
-    }
-
-    // 1. Compile photo for MindAR tracking
+    // 1. Compile 100% clean photo for MindAR tracking
     createProgressText.textContent = 'Compiling 3D AR tracking features... (Step 1/2)';
     const compiler = new Compiler();
     const imgElement = new Image();
-    imgElement.src = finalPhotoDataUrl;
+    imgElement.src = currentPhotoDataUrl;
     await new Promise((resolve, reject) => {
       imgElement.onload = resolve;
       imgElement.onerror = reject;
@@ -265,7 +248,7 @@ async function generateARPhoto() {
     createProgressFill.style.width = '85%';
     createProgressText.textContent = 'Embedding video data inside photo... (Step 2/2)';
 
-    generatedMagicBlob = await packMagicPhoto(finalPhotoFile, currentVideoFile);
+    generatedMagicBlob = await packMagicPhoto(currentPhotoFile, currentVideoFile);
     if (generatedMagicBlobUrl) URL.revokeObjectURL(generatedMagicBlobUrl);
     generatedMagicBlobUrl = URL.createObjectURL(generatedMagicBlob);
 
@@ -274,7 +257,7 @@ async function generateARPhoto() {
 
     // Brief delay for smooth UI feedback then transition to Result
     setTimeout(() => {
-      showResultView(imgElement, finalPhotoDataUrl);
+      showResultView(imgElement, currentPhotoDataUrl);
     }, 600);
 
   } catch (err) {
@@ -297,132 +280,6 @@ function showResultView(imgElement, displayPhotoUrl) {
   // Set download button
   btnDownloadResult.href = generatedMagicBlobUrl;
   btnDownloadResult.download = `MagicPhoto_${Date.now()}.png`;
-}
-
-// ========================================================
-//  SUBMERGED GHOST WATERMARK ENGINE (Zero White Box)
-// ========================================================
-function stampSubmergedQR(imageSrc, targetUrl, mode = 'ghost') {
-  return new Promise((resolve) => {
-    if (mode === 'none') {
-      resolve(null);
-      return;
-    }
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-
-      // 1. Draw original photo untouched
-      ctx.drawImage(img, 0, 0);
-
-      // 2. Generate temporary QR code in memory
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      document.body.appendChild(tempDiv);
-
-      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
-      const qrSize = Math.max(90, Math.round(minDim * 0.18));
-
-      try {
-        if (typeof QRCode === 'undefined') {
-          tempDiv.remove();
-          resolve(null);
-          return;
-        }
-
-        new QRCode(tempDiv, {
-          text: targetUrl,
-          width: qrSize,
-          height: qrSize,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-
-        setTimeout(() => {
-          const qrCanvas = tempDiv.querySelector('canvas');
-          if (qrCanvas) {
-            // Read QR pixel data to eliminate ALL white pixels
-            const qrCtx = qrCanvas.getContext('2d');
-            const qrImgData = qrCtx.getImageData(0, 0, qrSize, qrSize);
-            const data = qrImgData.data;
-
-            // Create transparent canvas with ONLY the dark modules
-            const transCanvas = document.createElement('canvas');
-            transCanvas.width = qrSize;
-            transCanvas.height = qrSize;
-            const transCtx = transCanvas.getContext('2d');
-            const transImgData = transCtx.createImageData(qrSize, qrSize);
-            const tData = transImgData.data;
-
-            // Submerged alpha: 15% (0.15) - seamlessly submerged with photo texture
-            const alphaByte = 38; // ~15% opacity
-
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i];
-              const g = data[i + 1];
-              const b = data[i + 2];
-              // If pixel is dark (part of QR code modules)
-              if (r < 120 && g < 120 && b < 120) {
-                tData[i] = 10;          // Soft black R
-                tData[i + 1] = 10;      // Soft black G
-                tData[i + 2] = 10;      // Soft black B
-                tData[i + 3] = alphaByte; // 15% submerged opacity
-              } else {
-                // White background pixel -> 100% transparent (no white box!)
-                tData[i + 3] = 0;
-              }
-            }
-            transCtx.putImageData(transImgData, 0, 0);
-
-            // Stamp directly onto the photo in bottom-right corner
-            // NO white box, NO border, NO shadow
-            const pad = Math.round(canvas.width * 0.025);
-            const x = canvas.width - qrSize - pad;
-            const y = canvas.height - qrSize - pad;
-
-            ctx.save();
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.drawImage(transCanvas, x, y, qrSize, qrSize);
-            ctx.restore();
-          }
-
-          tempDiv.remove();
-
-          canvas.toBlob((blob) => {
-            resolve(blob);
-          }, 'image/png');
-        }, 120);
-
-      } catch (err) {
-        console.warn('Submerged QR fallback:', err);
-        tempDiv.remove();
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = imageSrc;
-  });
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
 }
 
 // Reset creation to make another AR photo
