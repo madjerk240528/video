@@ -5,38 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Living Photo Memory — AR Experience</title>
+  <title>AR Living Memory — Create &amp; View AR Photos</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
-  <!-- A-Frame & MindAR (loaded always, scene built dynamically) -->
+  <!-- A-Frame & MindAR (always loaded, AR scene created on-demand) -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <link rel="stylesheet" href="style.css">
 
   <style>
-    /* ---- Upload Step UI ---- */
-    .upload-section {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    .upload-row {
+    /* Specific styles for the 2-column layout */
+    .columns-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
+      margin-bottom: 18px;
     }
 
-    .upload-box {
+    @media (max-width: 480px) {
+      .columns-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .upload-col-box {
       border: 2px dashed rgba(212, 175, 55, 0.35);
       border-radius: var(--radius-md);
-      padding: 20px 14px;
+      padding: 24px 14px 18px;
       text-align: center;
       cursor: pointer;
       transition: all 0.25s;
@@ -45,124 +45,64 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 130px;
+      min-height: 160px;
       position: relative;
       overflow: hidden;
     }
 
-    .upload-box:hover, .upload-box.dragover {
+    .upload-col-box:hover, .upload-col-box.dragover {
       border-color: var(--gold-primary);
-      background: rgba(212, 175, 55, 0.08);
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+      background: rgba(212, 175, 55, 0.09);
+      box-shadow: 0 0 22px rgba(212, 175, 55, 0.2);
     }
 
-    .upload-box.done {
+    .upload-col-box.done {
       border-style: solid;
-      border-color: rgba(34, 197, 94, 0.6);
-      background: rgba(34, 197, 94, 0.05);
+      border-color: rgba(34, 197, 94, 0.65);
+      background: rgba(34, 197, 94, 0.06);
     }
 
-    .upload-icon { font-size: 2rem; margin-bottom: 6px; }
-    .upload-label { font-size: 0.8rem; font-weight: 700; color: #fff; margin-bottom: 3px; }
-    .upload-hint { font-size: 0.72rem; color: var(--text-muted); }
+    .col-icon { font-size: 2.2rem; margin-bottom: 8px; }
+    .col-title { font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .col-desc { font-size: 0.74rem; color: var(--text-muted); }
+    .col-info { font-size: 0.72rem; color: var(--gold-vivid); margin-top: 6px; font-weight: 600; display: none; }
+    .upload-col-box.done .col-info { display: block; }
 
-    .upload-done-badge {
-      display: none;
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      background: #22c55e;
-      color: #fff;
-      font-size: 0.68rem;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 999px;
-    }
-
-    .upload-box.done .upload-done-badge { display: block; }
-
-    .upload-preview {
+    .media-thumb {
       display: none;
       width: 100%;
-      max-height: 90px;
+      max-height: 110px;
       object-fit: contain;
-      border-radius: 6px;
-      margin-top: 8px;
+      border-radius: 8px;
+      margin-top: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .upload-box.done .upload-preview { display: block; }
+    .upload-col-box.done .media-thumb { display: block; }
 
-    /* Compile Progress */
-    .compile-bar-wrap {
-      display: none;
-      background: rgba(14, 17, 26, 0.8);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      flex-direction: column;
-      gap: 10px;
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+      box-shadow: none;
+      transform: none !important;
     }
 
-    .compile-bar-wrap.active { display: flex; }
-
-    .compile-bar-track {
-      width: 100%;
-      height: 8px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 999px;
-      overflow: hidden;
+    .scan-view-box {
+      border: 2px dashed rgba(212, 175, 55, 0.45);
+      border-radius: var(--radius-lg);
+      padding: 32px 18px;
+      text-align: center;
+      background: rgba(14, 17, 26, 0.7);
+      cursor: pointer;
+      transition: all 0.25s;
+      margin-bottom: 16px;
     }
 
-    .compile-bar-fill {
-      height: 100%;
-      width: 0%;
-      background: var(--gold-btn-gradient);
-      border-radius: 999px;
-      transition: width 0.15s ease;
-    }
-
-    .compile-status {
-      font-size: 0.84rem;
-      color: var(--gold-vivid);
-      font-weight: 600;
-    }
-
-    /* Photo preview card hidden initially */
-    #photo-preview-section { display: none; }
-
-    /* Step indicator */
-    .steps-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 18px;
-    }
-
-    .step-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: rgba(212, 175, 55, 0.2);
-      border: 1px solid rgba(212, 175, 55, 0.4);
-      transition: all 0.3s;
-    }
-
-    .step-dot.active {
-      background: var(--gold-primary);
-      box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);
-    }
-
-    .step-label {
-      font-size: 0.76rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-
-    .step-label.active { color: var(--gold-vivid); }
-
-    @media (max-width: 400px) {
-      .upload-row { grid-template-columns: 1fr; }
+    .scan-view-box:hover, .scan-view-box.dragover {
+      border-color: var(--gold-primary);
+      background: rgba(212, 175, 55, 0.1);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
     }
   </style>
 </head>
@@ -178,127 +118,227 @@
     <!-- In-App Browser Warning -->
     <div id="inapp-banner" class="inapp-banner">
       <span>⚠️</span>
-      <span>Opened inside an app browser. Tap <strong>•••</strong> → <strong>"Open in Chrome/Safari"</strong> for AR to work, or use "Watch Video" below.</span>
+      <span>Opened inside an in-app browser. Tap <strong>•••</strong> → <strong>"Open in Chrome / Safari"</strong> for camera and file features to work smoothly.</span>
     </div>
 
+    <!-- Header -->
     <header>
       <div class="badge">
         <span class="badge-dot"></span>
         <span>Living Memory AR</span>
       </div>
-      <h1>Bring Your Photo to Life</h1>
-      <p class="subtitle">Upload your photo & video — point your camera at the print and watch it play.</p>
+      <h1>Living Photo Memory</h1>
+      <p class="subtitle">Turn any photo into a magical video memory that plays when scanned or opened.</p>
     </header>
 
-    <!-- Step 1: Upload -->
-    <section class="photo-card-container" id="upload-section">
+    <!-- Two-Option Navigation Tabs -->
+    <nav class="nav-tabs" role="tablist">
+      <button id="tab-btn-create" class="tab-btn active" role="tab" aria-selected="true">
+        <span class="tab-icon">🪄</span>
+        <span>Create AR Photo</span>
+      </button>
+      <button id="tab-btn-view" class="tab-btn" role="tab" aria-selected="false">
+        <span class="tab-icon">👁️</span>
+        <span>View / Scan</span>
+      </button>
+    </nav>
 
-      <!-- Step Indicator -->
-      <div class="steps-indicator">
-        <div class="step-dot active" id="dot-1"></div>
-        <div class="step-dot" id="dot-2"></div>
-        <div class="step-dot" id="dot-3"></div>
-        <span class="step-label active" id="step-label">Upload your photo & video</span>
-      </div>
+    <!-- ========================================================
+         OPTION 1: CREATE AR PHOTO PANEL
+         ======================================================== -->
+    <section id="panel-create" class="tab-panel active">
 
-      <!-- Upload Boxes -->
-      <div class="upload-section">
-        <div class="upload-row">
+      <!-- Form View: 2 Mandatory Columns -->
+      <div id="create-form-view">
+        <div style="text-align:center; margin-bottom:14px;">
+          <p style="font-size:0.84rem; color:var(--text-gold); font-weight:600;">
+            Upload both a photo and video below (both mandatory), then tap Generate.
+          </p>
+        </div>
 
-          <!-- Photo Upload -->
-          <div class="upload-box" id="photo-box">
-            <span class="upload-done-badge">✓ Ready</span>
-            <div class="upload-icon">🖼️</div>
-            <div class="upload-label">Your Photo</div>
-            <div class="upload-hint">JPG, PNG</div>
-            <img class="upload-preview" id="photo-thumb" alt="Photo preview">
-            <input type="file" id="photo-input" accept="image/*" style="display:none">
+        <div class="columns-grid">
+
+          <!-- Column 1: Photo (Mandatory) -->
+          <div class="upload-col-box" id="create-photo-box">
+            <span class="mandatory-badge">* Mandatory</span>
+            <span class="status-badge">✓ Selected</span>
+            <div class="col-icon">🖼️</div>
+            <div class="col-title">1. Upload Photo</div>
+            <div class="col-desc">JPG, PNG format</div>
+            <img class="media-thumb" id="create-photo-thumb" alt="Uploaded photo thumbnail">
+            <div class="col-info" id="create-photo-info"></div>
+            <input type="file" id="create-photo-input" accept="image/*" style="display:none">
           </div>
 
-          <!-- Video Upload -->
-          <div class="upload-box" id="video-box">
-            <span class="upload-done-badge">✓ Ready</span>
-            <div class="upload-icon">🎬</div>
-            <div class="upload-label">Your Video</div>
-            <div class="upload-hint">MP4, MOV, WebM</div>
-            <video class="upload-preview" id="video-thumb" muted playsinline></video>
-            <input type="file" id="video-input" accept="video/*" style="display:none">
+          <!-- Column 2: Video (Mandatory) -->
+          <div class="upload-col-box" id="create-video-box">
+            <span class="mandatory-badge">* Mandatory</span>
+            <span class="status-badge">✓ Selected</span>
+            <div class="col-icon">🎬</div>
+            <div class="col-title">2. Upload Video</div>
+            <div class="col-desc">MP4, MOV, WebM format</div>
+            <video class="media-thumb" id="create-video-thumb" muted playsinline></video>
+            <div class="col-info" id="create-video-info"></div>
+            <input type="file" id="create-video-input" accept="video/*" style="display:none">
           </div>
 
         </div>
 
-        <!-- Compile progress bar (shown during processing) -->
-        <div class="compile-bar-wrap" id="compile-bar-wrap">
-          <div class="compile-status" id="compile-status">Processing photo for AR tracking…</div>
+        <!-- Progress / Compile Status -->
+        <div class="compile-bar-wrap" id="create-progress-box" style="margin-bottom:16px;">
+          <div class="compile-status" id="create-progress-text">Preparing AR Magic...</div>
           <div class="compile-bar-track">
-            <div class="compile-bar-fill" id="compile-bar-fill"></div>
+            <div class="compile-bar-fill" id="create-progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- Mandatory Generate Button -->
+        <button id="btn-generate-ar" class="btn btn-primary" disabled>
+          <span class="btn-icon">✨</span>
+          <span>Generate AR Photo</span>
+        </button>
+        <p id="generate-hint" style="text-align:center; font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
+          * Please select both a photo and a video above to enable Generate.
+        </p>
+
+        <!-- Informational Guide -->
+        <div class="info-card" style="margin-top:22px;">
+          <div class="info-header"><span>💡</span><span>How the Magic Works:</span></div>
+          <ul class="info-list">
+            <li><span class="step-num">1</span><span>Upload your photo and video above, then tap <strong>Generate</strong>.</span></li>
+            <li><span class="step-num">2</span><span>Download the resulting photo to print or send to friends.</span></li>
+            <li><span class="step-num">3</span><span>When opened or scanned with <strong>View / Scan</strong>, the embedded video automatically plays!</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Result View: Shown after clicking Generate -->
+      <div id="create-result-view" style="display:none;">
+        <div class="result-card">
+          <div style="margin-bottom:12px;">
+            <div class="badge" style="margin-bottom:8px;">
+              <span class="badge-dot"></span>
+              <span>AR Photo Generated</span>
+            </div>
+            <h3 style="color:var(--gold-light); font-size:1.3rem; margin-bottom:4px;">Your Photo is Ready!</h3>
+            <p style="color:var(--text-muted); font-size:0.82rem;">
+              This photo contains your video embedded inside. Send it to anyone or print it!
+            </p>
+          </div>
+
+          <div class="result-image-wrap">
+            <img id="result-photo-img" alt="Generated AR Photo">
+            <div class="result-tag"><span>🎬</span><span>Embedded Video Inside</span></div>
+          </div>
+
+          <div id="result-photo-meta" style="font-size:0.8rem; color:var(--text-gold); margin-bottom:16px; font-weight:600;"></div>
+
+          <div class="action-grid" style="margin-bottom:0;">
+            <a id="btn-download-result" class="btn btn-primary" download="magic-photo.png" style="text-decoration:none;">
+              <span class="btn-icon">⬇️</span>
+              <span>Download Photo (to send)</span>
+            </a>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="btn-test-result-video" class="btn btn-secondary" style="flex:1; min-width:130px;">
+                <span class="btn-icon">▶</span>
+                <span>Test Video</span>
+              </button>
+              <button id="btn-goto-view" class="btn btn-secondary" style="flex:1; min-width:130px; border-color:var(--gold-primary);">
+                <span class="btn-icon">👁️</span>
+                <span>View / Scan Now</span>
+              </button>
+            </div>
+
+            <button id="btn-create-reset" class="studio-btn-link" style="justify-content:center; padding:10px; margin-top:6px; cursor:pointer; background:none;">
+              <span>🔄</span><span>Create Another AR Photo</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Start button: hidden until both are uploaded & compiled -->
-      <button id="btn-start-ar" class="btn btn-primary" style="display:none;">
-        <span class="btn-icon">✨</span>
-        <span>Point Camera &amp; Scan in AR</span>
-      </button>
-
-      <button id="btn-direct-play" class="btn btn-secondary" style="display:none; margin-top: 12px;">
-        <span class="btn-icon">▶</span>
-        <span>Watch Video Directly</span>
-      </button>
     </section>
 
-    <!-- Photo Preview (shown after upload, before AR) -->
-    <section id="photo-preview-section" class="photo-card-container">
-      <div class="preview-media-box" id="preview-box">
-        <img id="card-photo" alt="Memory Photo">
-        <div class="media-tag"><span>📷</span><span>Your Photo</span></div>
-        <div class="tap-hint">Tap to play ▶</div>
-      </div>
-      <div class="card-caption">
-        <div>
-          <div class="caption-title" id="display-title">Living Memory</div>
-          <div class="caption-meta" id="photo-dims">Portrait • Ready for AR</div>
+    <!-- ========================================================
+         OPTION 2: VIEW / SCAN AR PHOTO PANEL
+         ======================================================== -->
+    <section id="panel-view" class="tab-panel">
+
+      <!-- Upload Zone for Magic Photo -->
+      <div id="view-upload-section">
+        <div class="scan-view-box" id="view-drop-box">
+          <div style="font-size:2.8rem; margin-bottom:10px;">📤</div>
+          <h3 style="color:#fff; font-size:1.15rem; margin-bottom:6px;">Upload Photo to Play Video</h3>
+          <p style="color:var(--text-muted); font-size:0.82rem; max-width:320px; margin:0 auto 10px;">
+            Select or drop your photo here — the embedded video will start playing automatically!
+          </p>
+          <div class="badge" style="margin-bottom:0;">
+            <span>Tap to browse files</span>
+          </div>
+          <input type="file" id="view-file-input" accept="image/*" style="display:none">
         </div>
-        <button id="btn-change-files" class="studio-btn-link" style="border: none; cursor: pointer; background: none;">
-          <span>🔄</span><span>Change</span>
+      </div>
+
+      <!-- In-Tab Video Player (Plays video directly on this tab when photo is uploaded) -->
+      <div id="view-player-section" style="display:none;">
+        <div class="tab-video-player-wrap">
+          <div class="player-overlay-tag">
+            <span>✨</span><span>Memory Playing</span>
+          </div>
+          <video id="view-tab-video" controls autoplay playsinline webkit-playsinline></video>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div>
+            <div id="view-player-title" style="font-weight:700; color:#fff; font-size:1rem;">Living Memory</div>
+            <div id="view-player-subtitle" style="font-size:0.78rem; color:var(--text-gold);">Playing from uploaded photo</div>
+          </div>
+          <button id="btn-view-reset" class="studio-btn-link" style="cursor:pointer; background:none;">
+            <span>🔄</span><span>Upload Another</span>
+          </button>
+        </div>
+
+        <!-- Button to switch to 3D Camera AR using this active photo -->
+        <button id="btn-view-launch-ar" class="btn btn-primary" style="margin-bottom:16px;">
+          <span class="btn-icon">📷</span>
+          <span>Point Camera &amp; Scan in 3D AR</span>
         </button>
       </div>
-    </section>
 
-    <!-- Action buttons (shown on preview section) -->
-    <section class="action-grid" id="action-buttons" style="display:none;">
-      <button id="btn-start-ar-2" class="btn btn-primary">
-        <span class="btn-icon">✨</span>
-        <span>Point Camera &amp; Scan in AR</span>
-      </button>
-      <button id="btn-direct-play-2" class="btn btn-secondary">
-        <span class="btn-icon">▶</span>
-        <span>Watch Video Directly</span>
-      </button>
-    </section>
+      <!-- Divider -->
+      <div class="gold-divider">
+        <span>OR SCAN PRINTED PHOTO</span>
+      </div>
 
-    <!-- Guide -->
-    <section class="info-card" id="guide-card">
-      <div class="info-header"><span>💡</span><span>How it works:</span></div>
-      <ul class="info-list">
-        <li><span class="step-num">1</span><span><strong>Upload</strong> your photo &amp; video above.</span></li>
-        <li><span class="step-num">2</span><span><strong>Point camera</strong> at the printed photo.</span></li>
-        <li><span class="step-num">3</span><span><strong>Video plays</strong> live on the photo in 3D AR!</span></li>
-      </ul>
+      <!-- Live AR Camera Scanner Button -->
+      <div class="photo-card-container" style="text-align:center; padding:20px;">
+        <div style="font-size:2rem; margin-bottom:8px;">📷</div>
+        <h4 style="color:#fff; margin-bottom:6px; font-size:1.05rem;">Point Phone Camera &amp; Scan</h4>
+        <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:16px;">
+          Point your phone camera at the physical printed photo (or on another screen) to watch the video play in 3D AR right on top of it.
+        </p>
+        <button id="btn-start-camera-ar" class="btn btn-primary">
+          <span class="btn-icon">✨</span>
+          <span>Open Camera Scanner</span>
+        </button>
+      </div>
+
     </section>
 
   </main>
 
-  <!-- AR Camera View -->
+  <!-- ========================================================
+       LIVE AR CAMERA VIEWPORT (MindAR + A-Frame)
+       ======================================================== -->
   <div id="ar-container">
-    <!-- Scene injected dynamically by app.js -->
     <div class="ar-overlay">
       <div class="ar-top-bar">
         <button id="btn-exit-ar" class="ar-exit-btn"><span>✕</span><span>Close AR</span></button>
         <button id="btn-toggle-sound" class="ar-audio-btn"><span id="sound-icon">🔇</span></button>
       </div>
+
       <div id="tap-unmute-pill" class="tap-unmute-pill"><span>🔊</span><span>Tap to enable sound</span></div>
+
       <div class="ar-reticle-box" id="reticle-box">
         <div class="reticle-corner c-tl"></div>
         <div class="reticle-corner c-tr"></div>
@@ -306,6 +346,7 @@
         <div class="reticle-corner c-br"></div>
         <div class="scan-laser-line" id="scan-laser"></div>
       </div>
+
       <div class="ar-bottom-prompt">
         <div class="prompt-pill" id="prompt-pill">
           <span id="prompt-icon">🔍</span>
@@ -315,39 +356,36 @@
     </div>
   </div>
 
-  <!-- Direct Video Modal -->
+  <!-- Video Test / Preview Modal -->
   <div id="video-modal" class="modal-overlay">
     <div class="modal-content">
       <button id="btn-close-modal" class="modal-close-btn">✕</button>
       <div class="modal-video-container">
-        <video id="direct-video" controls playsinline webkit-playsinline></video>
+        <video id="modal-video-player" controls playsinline webkit-playsinline></video>
       </div>
       <div class="modal-body">
-        <h3>Your Video Memory</h3>
-        <p>Full-screen video from your uploaded file.</p>
+        <h3>Embedded Video Preview</h3>
+        <p>This is the video that plays when the photo is opened or scanned.</p>
       </div>
     </div>
   </div>
 
-  <!-- Permission modal -->
+  <!-- Permission Guidance Modal -->
   <div id="permission-modal" class="guide-modal">
     <div class="guide-card">
       <div class="guide-title"><span>📷</span><span>Camera Access Needed</span></div>
       <div class="guide-body">
-        <p>Allow camera access to use Augmented Reality.</p>
+        <p>To scan photos in Augmented Reality, allow camera access in your browser.</p>
         <ol>
-          <li><strong>iPhone (Safari):</strong> Tap <code>aA</code> → Website Settings → Camera: Allow</li>
-          <li><strong>Android (Chrome):</strong> Tap Lock icon → Permissions → Camera: Allow</li>
+          <li><strong>iPhone (Safari):</strong> Tap <code>aA</code> in address bar → Website Settings → Camera: Allow</li>
+          <li><strong>Android (Chrome):</strong> Tap the Lock icon in address bar → Permissions → Camera: Allow</li>
         </ol>
       </div>
-      <div style="display:flex; gap:10px; flex-direction:column;">
-        <button id="btn-modal-watch-direct" class="btn btn-primary">▶ Watch Video Instead</button>
-        <button id="btn-modal-close-guide" class="btn btn-secondary">Close</button>
-      </div>
+      <button id="btn-modal-close-guide" class="btn btn-primary">Got it</button>
     </div>
   </div>
 
-  <!-- MindAR Compiler (module) + App Logic -->
+  <!-- Main ES Module Script -->
   <script type="module" src="app.js"></script>
 
 </body>
