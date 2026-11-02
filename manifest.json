@@ -1,21 +1,26 @@
 {
-  "name": "AR Photo Scanner",
+  "id": "ar-photo-scanner-app",
+  "name": "Living Photo AR Scanner",
   "short_name": "AR Scanner",
   "description": "Scan living AR photos and bring memories to life.",
   "start_url": "scan.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#07080d",
-  "theme_color": "#d4af37",
+  "theme_color": "#07080d",
   "icons": [
     {
-      "src": "photo.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "photo.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -171,15 +171,21 @@
       </button>
     </div>
 
-    <!-- Install App Tip -->
-    <div class="install-pill">
-      <span style="font-size:1.5rem;">📲</span>
-      <div>
-        <strong>Install as a Standalone Phone App:</strong>
-        <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">
-          • iPhone: Tap Safari <strong>Share</strong> ➔ <strong>"Add to Home Screen"</strong><br>
-          • Android: Tap Chrome <strong>•••</strong> ➔ <strong>"Install App"</strong>
-        </div>
+    <!-- Dedicated Install Button Section (Home Screen + App Drawer) -->
+    <div class="photo-card-container" id="install-card" style="margin-top:24px; padding:20px; text-align:center;">
+      <div style="font-size:2rem; margin-bottom:8px;">📲</div>
+      <h3 style="color:#fff; font-size:1.15rem; margin-bottom:6px;">Install App on Phone</h3>
+      <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:16px; line-height:1.45;">
+        Installs this app into your phone's <strong>Home Screen</strong> and <strong>All Apps (sliding menu)</strong>. Even if removed from your home screen, the app stays permanently inside your sliding app drawer!
+      </p>
+
+      <button id="btn-install-app" class="btn btn-primary" style="font-size:1.02rem; padding:16px;">
+        <span class="btn-icon">⬇️</span>
+        <span id="install-btn-text">Install App to Phone</span>
+      </button>
+
+      <div id="install-status-msg" style="display:none; font-size:0.8rem; color:#22c55e; margin-top:12px; font-weight:700;">
+        ✓ App Installed! You can now find AR Scanner on your Home Screen and in your sliding App Drawer.
       </div>
     </div>
 
@@ -189,6 +195,28 @@
     </footer>
 
   </main>
+
+  <!-- iOS Install Helper Modal -->
+  <div id="ios-install-modal" class="guide-modal">
+    <div class="guide-card" style="text-align:center;">
+      <div style="font-size:2.4rem; margin-bottom:8px;">📲</div>
+      <h3 style="color:var(--gold-light); font-size:1.2rem; margin-bottom:8px;">Install on iPhone</h3>
+      <p style="color:var(--text-muted); font-size:0.84rem; margin-bottom:18px; line-height:1.45;">
+        Apple Safari allows 1-tap installation using the Share menu:
+      </p>
+      <div style="background:rgba(212,175,55,0.08); border:1px solid var(--surface-border); border-radius:var(--radius-md); padding:14px; text-align:left; margin-bottom:18px; font-size:0.84rem;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <span style="font-size:1.2rem;">1️⃣</span>
+          <span>Tap the Safari <strong>Share button</strong> (square with arrow) at the bottom.</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.2rem;">2️⃣</span>
+          <span>Scroll down and tap <strong>"Add to Home Screen"</strong>.</span>
+        </div>
+      </div>
+      <button id="btn-close-ios-modal" class="btn btn-primary">Got it</button>
+    </div>
+  </div>
 
   <!-- ========================================================
        LIVE AR CAMERA VIEWPORT

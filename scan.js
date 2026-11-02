@@ -45,6 +45,71 @@ const permissionModal    = document.getElementById('permission-modal');
 const btnModalCloseGuide = document.getElementById('btn-modal-close-guide');
 const inappBanner        = document.getElementById('inapp-banner');
 
+// PWA Install Elements
+const btnInstallApp      = document.getElementById('btn-install-app');
+const installBtnText     = document.getElementById('install-btn-text');
+const installStatusMsg   = document.getElementById('install-status-msg');
+const iosInstallModal    = document.getElementById('ios-install-modal');
+const btnCloseIosModal   = document.getElementById('btn-close-ios-modal');
+
+let deferredInstallPrompt = null;
+
+// ========================================================
+//  PWA INSTALL & SERVICE WORKER SYSTEM
+// ========================================================
+// Register Service Worker for true WebAPK / App Drawer support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.log('ServiceWorker note:', err);
+    });
+  });
+}
+
+// Catch the native PWA install prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  if (installBtnText) installBtnText.textContent = '⬇️ Install App (Home & Apps Menu)';
+});
+
+// Detect if already running as standalone app
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+if (isStandalone) {
+  if (installBtnText) installBtnText.textContent = '✓ App Installed';
+  if (btnInstallApp) btnInstallApp.disabled = true;
+  if (installStatusMsg) {
+    installStatusMsg.style.display = 'block';
+    installStatusMsg.textContent = '✓ Currently running as an installed standalone app!';
+  }
+}
+
+// Handle Install Button Click
+btnInstallApp && btnInstallApp.addEventListener('click', async () => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  if (deferredInstallPrompt) {
+    // Android / Chrome: Native 1-click install (installs to Home Screen AND App Drawer)
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      if (installStatusMsg) installStatusMsg.style.display = 'block';
+      if (btnInstallApp) btnInstallApp.style.display = 'none';
+    }
+    deferredInstallPrompt = null;
+  } else if (isIOS) {
+    // iOS Safari: Show visual 2-step prompt
+    if (iosInstallModal) iosInstallModal.classList.add('active');
+  } else {
+    // Desktop / other
+    alert("To install, tap the install icon ⊕ in your browser's address bar or menu!");
+  }
+});
+
+btnCloseIosModal && btnCloseIosModal.addEventListener('click', () => {
+  if (iosInstallModal) iosInstallModal.classList.remove('active');
+});
+
 // Check In-App Browser
 (function checkInApp() {
   const ua = navigator.userAgent || '';
