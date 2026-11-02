@@ -138,16 +138,16 @@
       <p class="subtitle">Turn any photo into a magical video memory that plays when scanned or opened.</p>
     </header>
 
-    <!-- Two-Option Navigation Tabs -->
-    <nav class="nav-tabs" role="tablist">
-      <button id="tab-btn-create" class="tab-btn active" role="tab" aria-selected="true">
+    <!-- Navigation: Creator vs Separate Scanner App -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" style="cursor:default;">
         <span class="tab-icon">🪄</span>
         <span>Create AR Photo</span>
       </button>
-      <button id="tab-btn-view" class="tab-btn" role="tab" aria-selected="false">
+      <a href="scan.html" class="tab-btn" style="text-decoration:none;">
         <span class="tab-icon">👁️</span>
-        <span>View / Scan</span>
-      </button>
+        <span>Scanner App ➔</span>
+      </a>
     </nav>
 
     <!-- ========================================================
@@ -278,10 +278,10 @@
                 <span class="btn-icon">▶</span>
                 <span>Test Video</span>
               </button>
-              <button id="btn-goto-view" class="btn btn-secondary" style="flex:1; min-width:130px; border-color:var(--gold-primary);">
+              <a href="scan.html" class="btn btn-secondary" style="flex:1; min-width:130px; border-color:var(--gold-primary); text-decoration:none; justify-content:center;">
                 <span class="btn-icon">👁️</span>
-                <span>View / Scan Now</span>
-              </button>
+                <span>Open Scanner App ➔</span>
+              </a>
             </div>
 
             <button id="btn-create-reset" class="studio-btn-link" style="justify-content:center; padding:10px; margin-top:6px; cursor:pointer; background:none;">

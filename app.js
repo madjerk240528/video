@@ -139,9 +139,9 @@ function switchTab(target) {
   }
 }
 
-tabBtnCreate.addEventListener('click', () => switchTab('create'));
-tabBtnView.addEventListener('click', () => switchTab('view'));
-btnGotoView.addEventListener('click', () => {
+tabBtnCreate && tabBtnCreate.addEventListener('click', () => switchTab('create'));
+tabBtnView && tabBtnView.addEventListener('click', () => switchTab('view'));
+btnGotoView && btnGotoView.addEventListener('click', () => {
   switchTab('view');
   // If we already have the active video from creation, show it in View player
   if (currentVideoObjectUrl) {
