@@ -3,90 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Creator Studio - AR Photo & QR Generator</title>
+  <title>Creator Studio - AR Photo & Video Studio</title>
   
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚙️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
   
+  <!-- Google Fonts: Montserrat & Playfair Display for Luxury Gold Feel -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+
   <!-- QR Code Generator Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     :root {
-      --primary: #6366f1;
-      --accent: #06b6d4;
-      --bg: #090d16;
-      --surface: #111827;
-      --border: rgba(255, 255, 255, 0.1);
-      --text: #f9fafb;
-      --text-muted: #9ca3af;
-      --radius: 12px;
+      --gold-light: #fef0c7;
+      --gold-primary: #d4af37;
+      --gold-vivid: #e5c07b;
+      --gold-deep: #996515;
+      --gold-gradient: linear-gradient(135deg, #f9f295 0%, #e0aa3e 35%, #faf0be 65%, #b8860b 100%);
+      --gold-btn-gradient: linear-gradient(135deg, #e5c07b 0%, #c59b27 50%, #996515 100%);
+      
+      --bg: #07080d;
+      --surface: #0e111a;
+      --surface-card: rgba(14, 17, 26, 0.85);
+      --border: rgba(212, 175, 55, 0.22);
+      --border-hover: rgba(212, 175, 55, 0.6);
+      
+      --text: #fbfbfd;
+      --text-muted: #a3a8b8;
+      --text-gold: #e5c07b;
+      --radius: 14px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
       background: var(--bg);
+      background-image: radial-gradient(circle at 50% 0%, #151824 0%, #07080d 75%);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 24px 16px;
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px 16px 40px;
       line-height: 1.5;
+      min-height: 100vh;
     }
 
     .container {
-      max-width: 840px;
+      max-width: 880px;
       margin: 0 auto;
     }
 
     header {
-      margin-bottom: 28px;
+      margin-bottom: 30px;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 20px;
+      padding-bottom: 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 14px;
     }
 
-    h1 {
-      font-size: 1.7rem;
-      background: linear-gradient(135deg, #fff 40%, #a5b4fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .back-link {
-      color: #818cf8;
-      text-decoration: none;
-      font-size: 0.9rem;
+    .badge-gold {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(99, 102, 241, 0.15);
-      padding: 6px 14px;
+      padding: 4px 12px;
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.35);
       border-radius: 999px;
+      color: var(--gold-vivid);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ffffff 30%, #fef0c7 65%, #d4af37 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.01em;
+    }
+
+    .back-link {
+      color: var(--gold-vivid);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid var(--border);
+      padding: 8px 18px;
+      border-radius: 999px;
+      transition: all 0.25s;
+    }
+
+    .back-link:hover {
+      background: rgba(212, 175, 55, 0.2);
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 16px rgba(212, 175, 55, 0.25);
     }
 
     .section-card {
-      background: var(--surface);
+      background: var(--surface-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 22px;
+      padding: 24px;
       margin-bottom: 24px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(212, 175, 55, 0.05);
+      transition: border-color 0.3s;
+    }
+
+    .section-card:hover {
+      border-color: var(--border-hover);
     }
 
     .section-title {
-      font-size: 1.2rem;
-      font-weight: 600;
+      font-size: 1.25rem;
+      font-weight: 700;
       margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: #fff;
+    }
+
+    .section-title span:first-child {
+      color: var(--gold-primary);
     }
 
     .section-desc {
       color: var(--text-muted);
-      font-size: 0.9rem;
-      margin-bottom: 18px;
+      font-size: 0.88rem;
+      margin-bottom: 20px;
     }
 
     .form-group {
@@ -96,158 +151,131 @@
     label {
       display: block;
       font-size: 0.85rem;
-      font-weight: 500;
+      font-weight: 600;
       margin-bottom: 6px;
-      color: #e5e7eb;
+      color: var(--gold-light);
     }
 
     input[type="text"], input[type="url"], select {
       width: 100%;
-      background: #030712;
+      background: #040508;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
+      border-radius: 10px;
+      padding: 12px 14px;
       color: #fff;
       font-size: 0.95rem;
+      transition: border-color 0.2s;
     }
 
     input:focus, select:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.25);
+    }
+
+    /* Dual Upload Grid (Photo + Video) */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 16px;
     }
 
     .drop-zone {
-      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border: 2px dashed rgba(212, 175, 55, 0.35);
       border-radius: var(--radius);
-      padding: 28px;
+      padding: 24px 18px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.2s ease;
-      background: rgba(255, 255, 255, 0.02);
+      transition: all 0.25s ease;
+      background: rgba(212, 175, 55, 0.02);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      position: relative;
     }
 
     .drop-zone:hover {
-      border-color: var(--primary);
-      background: rgba(99, 102, 241, 0.05);
+      border-color: var(--gold-primary);
+      background: rgba(212, 175, 55, 0.06);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
     }
 
+    .drop-icon {
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+
+    .preview-box-mini {
+      width: 100%;
+      max-height: 180px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 12px;
+      display: none;
+      background: #000;
+    }
+
+    .preview-box-mini img, .preview-box-mini video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .meta-tag-pill {
+      margin-top: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      border-radius: 999px;
+      color: var(--gold-vivid);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    /* Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 0.92rem;
-      font-weight: 600;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 0.94rem;
+      font-weight: 700;
       cursor: pointer;
       border: none;
-      transition: 0.2s;
+      transition: all 0.25s;
       text-decoration: none;
+      user-select: none;
     }
 
-    .btn-primary {
-      background: var(--primary);
-      color: #fff;
+    .btn-gold {
+      background: var(--gold-btn-gradient);
+      color: #120d03;
+      box-shadow: 0 8px 24px rgba(212, 175, 55, 0.35);
     }
 
-    .btn-primary:hover { background: #4f46e5; }
+    .btn-gold:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 10px 28px rgba(212, 175, 55, 0.45);
+    }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06);
       color: #fff;
+      border: 1px solid var(--border);
     }
 
-    .btn-secondary:hover { background: rgba(255, 255, 255, 0.16); }
-
-    .btn-accent {
-      background: #0284c7;
-      color: #fff;
-    }
-
-    .btn-accent:hover { background: #0369a1; }
-
-    /* Print Preview Card Layouts */
-    .preview-canvas-wrapper {
-      background: #000;
-      padding: 24px;
-      border-radius: var(--radius);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-top: 16px;
-      overflow: hidden;
-    }
-
-    .printable-card {
-      background: #ffffff;
-      color: #111;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      position: relative;
-      transition: all 0.2s;
-    }
-
-    /* Style 1: Modern with subtle corner QR */
-    .style-corner {
-      width: 360px;
-      max-width: 100%;
-      aspect-ratio: 4 / 5;
-      padding: 12px;
-      border-radius: 8px;
-    }
-
-    .style-corner .card-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-
-    .style-corner .card-qr {
-      position: absolute;
-      bottom: 18px;
-      right: 18px;
-      background: #fff;
-      padding: 4px;
-      border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-      width: 60px;
-      height: 60px;
-    }
-
-    /* Style 2: Classic Polaroid */
-    .style-polaroid {
-      width: 320px;
-      max-width: 100%;
-      padding: 16px 16px 24px 16px;
-      border-radius: 4px;
-    }
-
-    .style-polaroid .card-img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-      display: block;
-    }
-
-    .style-polaroid .polaroid-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 14px;
-      padding: 0 4px;
-    }
-
-    .style-polaroid .polaroid-caption {
-      font-family: 'Courier New', Courier, monospace;
-      font-weight: 700;
-      font-size: 0.95rem;
-    }
-
-    .style-polaroid .card-qr {
-      width: 52px;
-      height: 52px;
-      background: #fff;
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--gold-vivid);
     }
 
     /* Target compiler progress */
@@ -263,11 +291,135 @@
     .progress-bar-fill {
       width: 0%;
       height: 100%;
-      background: var(--accent);
+      background: var(--gold-primary);
       transition: width 0.1s ease;
     }
 
+    /* Print Preview Canvas Wrapper */
+    .preview-canvas-wrapper {
+      background: #020305;
+      padding: 28px 16px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .printable-card {
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    /* Style 0: Pure Photo (Only Photo as Output - Pure Portrait/Landscape) */
+    .style-pure {
+      width: auto;
+      max-width: 380px;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.7);
+      display: inline-block;
+      line-height: 0;
+    }
+
+    .style-pure .card-img {
+      width: 100%;
+      height: auto;
+      max-height: 65vh;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Style 1: Modern Border + Corner QR */
+    .style-corner {
+      width: 360px;
+      max-width: 100%;
+      background: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.7);
+    }
+
+    .style-corner .card-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
+    }
+
+    /* Style 2: Classic Polaroid */
+    .style-polaroid {
+      width: 340px;
+      max-width: 100%;
+      background: #fff;
+      color: #111;
+      padding: 16px 16px 24px 16px;
+      border-radius: 4px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.7);
+    }
+
+    .style-polaroid .card-img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .style-polaroid .polaroid-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding: 0 4px;
+    }
+
+    .style-polaroid .polaroid-caption {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #111;
+    }
+
+    /* QR Code Box */
+    .card-qr {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 60px;
+      height: 60px;
+      z-index: 10;
+      transition: all 0.2s;
+    }
+
+    .card-qr.white-box {
+      background: #fff;
+      padding: 4px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .card-qr.transparent-bg {
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+
+    .card-qr.hidden-qr {
+      display: none !important;
+    }
+
+    .card-qr img, .card-qr canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* Print Viewport (Prints Only Photo when Pure Photo is Selected) */
     @media print {
+      body { background: transparent !important; }
       body * { visibility: hidden; }
       .printable-card, .printable-card * { visibility: visible; }
       .printable-card {
@@ -275,7 +427,12 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        box-shadow: none;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+      .style-pure .card-img {
+        max-width: 95vw !important;
+        max-height: 95vh !important;
       }
     }
   </style>
@@ -285,8 +442,12 @@
   <div class="container">
     <header>
       <div>
-        <h1>Creator Studio & QR Print Assistant</h1>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Generate your QR code, compile targets for AR, and create printable cards.</p>
+        <div class="badge-gold">
+          <span>✨</span>
+          <span>Ultra-Premium AR Studio</span>
+        </div>
+        <h1>Living Portrait Studio</h1>
+        <p style="color: var(--text-muted); font-size: 0.92rem;">Upload your portrait photo and video, compile AR tracking, and export your pure photo memory.</p>
       </div>
       <a href="index.html" class="back-link">← Return to Experience</a>
     </header>
@@ -295,86 +456,134 @@
     <div class="section-card">
       <div class="section-title">
         <span>🔗</span>
-        <span>1. Enter Your Permanent GitHub Pages Link</span>
+        <span>1. Your Permanent GitHub Pages Link</span>
       </div>
-      <p class="section-desc">This is the permanent link generated by GitHub Pages (e.g., <code>https://yourusername.github.io/ar-photo-video/</code>). When scanned by Google Photos or standard camera, it will load your page instantly.</p>
+      <p class="section-desc">The permanent link generated by GitHub Pages (e.g., <code>https://madjerk240528.github.io/video/</code>). When scanned by any phone camera or Google Photos, it loads this experience.</p>
       
       <div class="form-group">
-        <label for="gh-url">Your Website URL:</label>
-        <input type="url" id="gh-url" placeholder="https://username.github.io/ar-photo-video/" value="https://username.github.io/ar-photo-video/">
+        <label for="gh-url">Website URL:</label>
+        <input type="url" id="gh-url" placeholder="https://madjerk240528.github.io/video/" value="https://madjerk240528.github.io/video/">
       </div>
       
-      <button id="btn-update-qr" class="btn btn-primary">Update QR Code</button>
+      <button id="btn-update-qr" class="btn btn-gold">Update QR Target Link</button>
     </div>
 
-    <!-- Step 2: MindAR Targets Compiler (.mind file) -->
+    <!-- Step 2: Upload Both Photo & Video (Editable Media) -->
     <div class="section-card">
       <div class="section-title">
-        <span>🎯</span>
-        <span>2. Compile Photo for AR Tracking (targets.mind)</span>
+        <span>📸</span>
+        <span>2. Upload Both Photo & Video</span>
       </div>
-      <p class="section-desc">MindAR requires your photo to be compiled into a lightweight feature map (<code>targets.mind</code>) so your phone can track the printed picture in 3D AR at 60 FPS.</p>
+      <p class="section-desc">Upload your photo and video. The system automatically detects whether it is <strong>Portrait</strong> or <strong>Landscape</strong> and aligns the AR projection perfectly.</p>
 
-      <div class="drop-zone" id="compiler-drop-zone">
-        <div style="font-size: 2.2rem; margin-bottom: 8px;">🖼️</div>
-        <p style="font-weight: 600; margin-bottom: 4px;">Select or drop your photo to compile</p>
-        <p style="color: var(--text-muted); font-size: 0.8rem;">Supports JPG, PNG (Recommended high contrast & detail)</p>
-        <input type="file" id="file-compiler-input" accept="image/*" style="display: none;">
+      <div class="upload-grid">
+        <!-- Photo Upload Box -->
+        <div class="drop-zone" id="photo-drop-zone">
+          <div class="drop-icon">🖼️</div>
+          <p style="font-weight: 700; color: #fff; margin-bottom: 4px;">Upload Photo (photo.jpg)</p>
+          <p style="color: var(--text-muted); font-size: 0.8rem;">Click or drop your photo</p>
+          <input type="file" id="photo-input" accept="image/*" style="display: none;">
+          
+          <div class="preview-box-mini" id="photo-preview-mini">
+            <img id="photo-preview-thumb" src="./photo.jpg" alt="Photo Thumbnail">
+          </div>
+          <div class="meta-tag-pill" id="photo-meta-tag">Portrait (Detected)</div>
+        </div>
+
+        <!-- Video Upload Box -->
+        <div class="drop-zone" id="video-drop-zone">
+          <div class="drop-icon">🎬</div>
+          <p style="font-weight: 700; color: #fff; margin-bottom: 4px;">Upload Video (video.mp4)</p>
+          <p style="color: var(--text-muted); font-size: 0.8rem;">Click or drop your video clip</p>
+          <input type="file" id="video-input" accept="video/*" style="display: none;">
+
+          <div class="preview-box-mini" id="video-preview-mini">
+            <video id="video-preview-thumb" src="./video.mp4" controls playsinline></video>
+          </div>
+          <div class="meta-tag-pill" id="video-meta-tag">Ready for AR</div>
+        </div>
       </div>
 
+      <!-- AR Compile Bar -->
       <div class="progress-bar-container" id="compiler-progress">
         <div class="progress-bar-fill" id="compiler-progress-fill"></div>
       </div>
-      
-      <div id="compiler-status" style="margin-top: 10px; font-size: 0.88rem; color: #a5b4fc;"></div>
+      <div id="compiler-status" style="margin-top: 10px; font-size: 0.88rem; color: var(--gold-vivid);"></div>
 
-      <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
-        <button id="btn-start-compile" class="btn btn-accent" style="display: none;">Compile targets.mind</button>
-        <a id="btn-download-mind" class="btn btn-primary" style="display: none;" download="targets.mind">⬇ Download targets.mind</a>
+      <div style="margin-top: 18px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <button id="btn-start-compile" class="btn btn-gold" style="display: none;">Compile targets.mind for AR</button>
+        <a id="btn-download-mind" class="btn btn-gold" style="display: none;" download="targets.mind">⬇ Download targets.mind</a>
+        <a id="btn-download-photo" class="btn btn-secondary" style="display: none;" download="photo.jpg">⬇ Save photo.jpg</a>
+        <a id="btn-download-video" class="btn btn-secondary" style="display: none;" download="video.mp4">⬇ Save video.mp4</a>
         <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" class="btn btn-secondary">
-          🌐 MindAR Official Online Compiler ↗
+          🌐 MindAR Online Compiler ↗
         </a>
       </div>
     </div>
 
-    <!-- Step 3: Card & Printable Layout Generator -->
+    <!-- Step 3: Output Photo Generator (Portrait & Pure Photo) -->
     <div class="section-card">
       <div class="section-title">
         <span>🖨️</span>
-        <span>3. Generate Printable Card with QR Code</span>
+        <span>3. Output Photo (Pure Portrait Output)</span>
       </div>
-      <p class="section-desc">Choose a template to print. When someone scans it with <strong>Google Photos</strong>, <strong>Google Lens</strong>, or an <strong>iPhone/Android Camera</strong>, it opens your site and triggers the AR video.</p>
+      <p class="section-desc">Select how you want to export your photo. If you choose <strong>Only Photo as Output</strong>, it outputs strictly your pure portrait photo with zero borders and zero QR codes.</p>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
         <div class="form-group">
-          <label for="card-style">Template Style:</label>
+          <label for="card-style">Output Format:</label>
           <select id="card-style">
-            <option value="corner">Full Photo + Subtle Corner QR</option>
+            <option value="pure" selected>⭐ Only Photo as Output (Pure Portrait, No QR/Borders)</option>
+            <option value="corner">Photo + Subtle Transparent Corner QR</option>
             <option value="polaroid">Classic Polaroid with Caption</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="card-caption-input">Caption / Title:</label>
-          <input type="text" id="card-caption-input" value="Always Remembered • 2026">
+          <label for="qr-mode">QR Transparency:</label>
+          <select id="qr-mode">
+            <option value="hidden" selected>100% Clean (No QR on Front - Best for Pure Photo)</option>
+            <option value="transparent">100% Transparent Background (No white box)</option>
+            <option value="white">Solid White Box</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="qr-color">QR Code Color:</label>
+          <select id="qr-color">
+            <option value="#d4af37">Champagne Gold</option>
+            <option value="#ffffff">White</option>
+            <option value="#000000">Black</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="qr-opacity">QR Opacity: <strong id="opacity-label">0%</strong></label>
+          <input type="range" id="qr-opacity" min="0" max="100" value="0" style="width: 100%; accent-color: var(--gold-primary); margin-top: 8px;">
         </div>
       </div>
 
-      <div style="margin-bottom: 12px;">
-        <button id="btn-print" class="btn btn-primary">🖨️ Print / Save as PDF</button>
+      <div class="form-group" id="caption-group" style="display: none; margin-bottom: 16px;">
+        <label for="card-caption-input">Caption / Title:</label>
+        <input type="text" id="card-caption-input" value="A Moment Preserved in Time • 2026">
+      </div>
+
+      <div style="margin-bottom: 14px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <button id="btn-print" class="btn btn-gold">🖨️ Print / Save as PDF (Pure Photo)</button>
+        <button id="btn-download-pure-photo" class="btn btn-secondary">💾 Download Output Photo</button>
       </div>
 
       <!-- Preview Canvas -->
       <div class="preview-canvas-wrapper">
-        <div id="printable-card" class="printable-card style-corner">
+        <div id="printable-card" class="printable-card style-pure">
           <img id="card-preview-img" class="card-img" src="./photo.jpg" alt="Target Photo" onerror="this.src='./photo.png'">
           
           <!-- QR container -->
-          <div id="qr-box" class="card-qr"></div>
+          <div id="qr-box" class="card-qr hidden-qr"></div>
           
           <!-- Polaroid elements -->
           <div class="polaroid-bottom" id="polaroid-footer" style="display: none;">
-            <div class="polaroid-caption" id="polaroid-text">Always Remembered • 2026</div>
+            <div class="polaroid-caption" id="polaroid-text">A Moment Preserved in Time • 2026</div>
           </div>
         </div>
       </div>
@@ -387,13 +596,11 @@
         <span>4. Permanent Link Setup on GitHub (Free Forever)</span>
       </div>
       <ol style="padding-left: 20px; color: var(--text-muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px;">
-        <li>Create a new repository on <a href="https://github.com/new" target="_blank" style="color: #818cf8;">GitHub.com</a> (e.g. named <code>living-memory</code>).</li>
-        <li>Upload all files from this folder into the repository.</li>
-        <li>Replace <code>photo.jpg</code> and <code>video.mp4</code> with your own photo and video.</li>
-        <li>Put the compiled <code>targets.mind</code> file into the repository root.</li>
-        <li>In your repository, click <strong>Settings</strong> → <strong>Pages</strong>.</li>
+        <li>Place your prepared <strong style="color: var(--gold-light);">photo.jpg</strong> and <strong style="color: var(--gold-light);">video.mp4</strong> into your repository root.</li>
+        <li>Put the compiled <strong style="color: var(--gold-light);">targets.mind</strong> file into your repository root.</li>
+        <li>In your GitHub repo, click <strong>Settings</strong> → <strong>Pages</strong>.</li>
         <li>Under <strong>Branch</strong>, select <code>main</code> and folder <code>/ (root)</code>, then click <strong>Save</strong>.</li>
-        <li>Within 1-2 minutes, GitHub gives you your permanent HTTPS link: <code>https://&lt;your-username&gt;.github.io/&lt;repo-name&gt;/</code>!</li>
+        <li>Within 60 seconds, your permanent live AR website is active!</li>
       </ol>
     </div>
 
@@ -403,68 +610,132 @@
   <script type="module">
     import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
 
-    const dropZone = document.getElementById('compiler-drop-zone');
-    const fileInput = document.getElementById('file-compiler-input');
+    const photoDropZone = document.getElementById('photo-drop-zone');
+    const photoInput = document.getElementById('photo-input');
+    const photoPreviewMini = document.getElementById('photo-preview-mini');
+    const photoPreviewThumb = document.getElementById('photo-preview-thumb');
+    const photoMetaTag = document.getElementById('photo-meta-tag');
+    
+    const videoDropZone = document.getElementById('video-drop-zone');
+    const videoInput = document.getElementById('video-input');
+    const videoPreviewMini = document.getElementById('video-preview-mini');
+    const videoPreviewThumb = document.getElementById('video-preview-thumb');
+    const videoMetaTag = document.getElementById('video-meta-tag');
+
     const btnCompile = document.getElementById('btn-start-compile');
     const btnDownload = document.getElementById('btn-download-mind');
+    const btnDownloadPhoto = document.getElementById('btn-download-photo');
+    const btnDownloadVideo = document.getElementById('btn-download-video');
+    const btnDownloadPurePhoto = document.getElementById('btn-download-pure-photo');
+
     const progressContainer = document.getElementById('compiler-progress');
     const progressBar = document.getElementById('compiler-progress-fill');
     const compilerStatus = document.getElementById('compiler-status');
     const cardPreviewImg = document.getElementById('card-preview-img');
 
     let selectedImageFile = null;
+    let selectedVideoFile = null;
 
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        handleImageFile(e.target.files[0]);
-      }
+    // 1. Photo File Picker & Drop
+    photoDropZone.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') photoInput.click();
     });
 
-    dropZone.addEventListener('dragover', (e) => {
+    photoInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handlePhotoFile(e.target.files[0]);
+    });
+
+    photoDropZone.addEventListener('dragover', (e) => { e.preventDefault(); photoDropZone.style.borderColor = 'var(--gold-primary)'; });
+    photoDropZone.addEventListener('dragleave', () => { photoDropZone.style.borderColor = ''; });
+    photoDropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.style.borderColor = 'var(--primary)';
+      photoDropZone.style.borderColor = '';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) handlePhotoFile(e.dataTransfer.files[0]);
     });
 
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.style.borderColor = '';
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.style.borderColor = '';
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleImageFile(e.dataTransfer.files[0]);
-      }
-    });
-
-    function handleImageFile(file) {
+    function handlePhotoFile(file) {
       selectedImageFile = file;
       btnCompile.style.display = 'inline-flex';
       btnDownload.style.display = 'none';
-      compilerStatus.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB). Ready to compile.`;
 
-      // Update card preview
       const reader = new FileReader();
       reader.onload = (ev) => {
-        cardPreviewImg.src = ev.target.result;
+        const dataUrl = ev.target.result;
+        cardPreviewImg.src = dataUrl;
+        photoPreviewThumb.src = dataUrl;
+        photoPreviewMini.style.display = 'block';
+
+        // Check Dimensions
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          const w = tempImg.naturalWidth;
+          const h = tempImg.naturalHeight;
+          const isPortrait = h >= w;
+          const ratio = (h / w).toFixed(2);
+          photoMetaTag.textContent = `${w}x${h} • ${isPortrait ? 'Portrait' : 'Landscape'} (${ratio})`;
+          compilerStatus.textContent = `Photo loaded: ${w}x${h} ${isPortrait ? 'Portrait' : 'Landscape'}. Click "Compile targets.mind".`;
+        };
+        tempImg.src = dataUrl;
+
+        // Setup photo download
+        btnDownloadPhoto.href = dataUrl;
+        btnDownloadPhoto.style.display = 'inline-flex';
+        btnDownloadPurePhoto.onclick = () => {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = 'photo.jpg';
+          a.click();
+        };
       };
       reader.readAsDataURL(file);
     }
 
+    // 2. Video File Picker & Drop
+    videoDropZone.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') videoInput.click();
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleVideoFile(e.target.files[0]);
+    });
+
+    videoDropZone.addEventListener('dragover', (e) => { e.preventDefault(); videoDropZone.style.borderColor = 'var(--gold-primary)'; });
+    videoDropZone.addEventListener('dragleave', () => { videoDropZone.style.borderColor = ''; });
+    videoDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      videoDropZone.style.borderColor = '';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) handleVideoFile(e.dataTransfer.files[0]);
+    });
+
+    function handleVideoFile(file) {
+      selectedVideoFile = file;
+      const videoUrl = URL.createObjectURL(file);
+      videoPreviewThumb.src = videoUrl;
+      videoPreviewMini.style.display = 'block';
+
+      videoPreviewThumb.onloadedmetadata = () => {
+        const vw = videoPreviewThumb.videoWidth;
+        const vh = videoPreviewThumb.videoHeight;
+        const isPortrait = vh >= vw;
+        videoMetaTag.textContent = `${vw}x${vh} • ${isPortrait ? 'Portrait' : 'Landscape'}`;
+      };
+
+      btnDownloadVideo.href = videoUrl;
+      btnDownloadVideo.style.display = 'inline-flex';
+    }
+
+    // 3. Compiler Execution
     btnCompile.addEventListener('click', async () => {
       if (!selectedImageFile) return;
 
       progressContainer.style.display = 'block';
       progressBar.style.width = '0%';
-      compilerStatus.textContent = 'Compiling image tracking features... (takes 5-15 seconds)';
+      compilerStatus.textContent = 'Analyzing photo features... (takes 5-15 seconds)';
       btnCompile.disabled = true;
 
       try {
         const compiler = new Compiler();
         
-        // Load image as HTMLImageElement
         const img = new Image();
         img.src = URL.createObjectURL(selectedImageFile);
         await new Promise((resolve, reject) => {
@@ -472,10 +743,9 @@
           img.onerror = reject;
         });
 
-        // Compile targets with progress callback
         await compiler.compileImageTargets([img], (percent) => {
           progressBar.style.width = `${percent.toFixed(1)}%`;
-          compilerStatus.textContent = `Processing tracking points: ${percent.toFixed(0)}%`;
+          compilerStatus.textContent = `Compiling tracking points: ${percent.toFixed(0)}%`;
         });
 
         const exportedBuffer = await compiler.exportData();
@@ -498,18 +768,97 @@
   <script>
     let qr = null;
 
+    const cardStyleSelect = document.getElementById('card-style');
+    const printableCard = document.getElementById('printable-card');
+    const qrModeSelect = document.getElementById('qr-mode');
+    const qrColorSelect = document.getElementById('qr-color');
+    const qrOpacityInput = document.getElementById('qr-opacity');
+    const opacityLabel = document.getElementById('opacity-label');
+    const qrBox = document.getElementById('qr-box');
+    const captionGroup = document.getElementById('caption-group');
+    const captionInput = document.getElementById('card-caption-input');
+    const polaroidText = document.getElementById('polaroid-text');
+    const polaroidFooter = document.getElementById('polaroid-footer');
+
     function renderQR() {
       const url = document.getElementById('gh-url').value || window.location.href;
-      const qrBox = document.getElementById('qr-box');
+      const mode = qrModeSelect ? qrModeSelect.value : 'hidden';
+      const color = qrColorSelect ? qrColorSelect.value : '#d4af37';
+      const opacity = qrOpacityInput ? parseInt(qrOpacityInput.value) / 100 : 0;
+
       qrBox.innerHTML = '';
-      
+      qrBox.style.opacity = opacity;
+
+      if (mode === 'hidden' || opacity === 0) {
+        qrBox.classList.add('hidden-qr');
+        return;
+      } else {
+        qrBox.classList.remove('hidden-qr');
+      }
+
+      const isTransparent = (mode === 'transparent');
+      if (isTransparent) {
+        qrBox.className = 'card-qr transparent-bg';
+      } else {
+        qrBox.className = 'card-qr white-box';
+      }
+
+      const colorLight = isTransparent ? "rgba(0,0,0,0)" : "#ffffff";
+
       qr = new QRCode(qrBox, {
         text: url,
-        width: 120,
-        height: 120,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
+        width: 140,
+        height: 140,
+        colorDark: color,
+        colorLight: colorLight,
         correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    // Format & Layout Switcher
+    cardStyleSelect.addEventListener('change', () => {
+      const val = cardStyleSelect.value;
+      
+      if (val === 'pure') {
+        // Pure Photo (Only Photo as Output)
+        printableCard.className = 'printable-card style-pure';
+        polaroidFooter.style.display = 'none';
+        captionGroup.style.display = 'none';
+        qrModeSelect.value = 'hidden';
+        qrOpacityInput.value = '0';
+        opacityLabel.textContent = '0%';
+        printableCard.appendChild(qrBox);
+      } else if (val === 'corner') {
+        printableCard.className = 'printable-card style-corner';
+        polaroidFooter.style.display = 'none';
+        captionGroup.style.display = 'none';
+        qrModeSelect.value = 'transparent';
+        qrOpacityInput.value = '100';
+        opacityLabel.textContent = '100%';
+        printableCard.appendChild(qrBox);
+      } else if (val === 'polaroid') {
+        printableCard.className = 'printable-card style-polaroid';
+        polaroidFooter.style.display = 'flex';
+        captionGroup.style.display = 'block';
+        qrModeSelect.value = 'white';
+        qrOpacityInput.value = '100';
+        opacityLabel.textContent = '100%';
+        polaroidFooter.appendChild(qrBox);
+      }
+
+      renderQR();
+    });
+
+    captionInput.addEventListener('input', () => {
+      polaroidText.textContent = captionInput.value;
+    });
+
+    if (qrModeSelect) qrModeSelect.addEventListener('change', renderQR);
+    if (qrColorSelect) qrColorSelect.addEventListener('change', renderQR);
+    if (qrOpacityInput) {
+      qrOpacityInput.addEventListener('input', () => {
+        opacityLabel.textContent = `${qrOpacityInput.value}%`;
+        renderQR();
       });
     }
 
@@ -517,38 +866,13 @@
 
     // Initial QR render
     window.addEventListener('DOMContentLoaded', () => {
-      // Set default URL to current URL if hosted
       if (window.location.protocol.startsWith('http')) {
         document.getElementById('gh-url').value = window.location.href.split('studio.html')[0];
       }
       renderQR();
     });
 
-    // Card style switcher
-    const cardStyleSelect = document.getElementById('card-style');
-    const printableCard = document.getElementById('printable-card');
-    const polaroidFooter = document.getElementById('polaroid-footer');
-    const qrBox = document.getElementById('qr-box');
-    const captionInput = document.getElementById('card-caption-input');
-    const polaroidText = document.getElementById('polaroid-text');
-
-    captionInput.addEventListener('input', () => {
-      polaroidText.textContent = captionInput.value;
-    });
-
-    cardStyleSelect.addEventListener('change', () => {
-      if (cardStyleSelect.value === 'polaroid') {
-        printableCard.className = 'printable-card style-polaroid';
-        polaroidFooter.style.display = 'flex';
-        polaroidFooter.appendChild(qrBox);
-      } else {
-        printableCard.className = 'printable-card style-corner';
-        polaroidFooter.style.display = 'none';
-        printableCard.appendChild(qrBox);
-      }
-    });
-
-    // Print button
+    // Print button (Prints pure portrait photo cleanly)
     document.getElementById('btn-print').addEventListener('click', () => {
       window.print();
     });

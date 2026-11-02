@@ -43,23 +43,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   checkInAppBrowser();
 
-  // 2. Auto-adjust AR video mesh dimensions to match video aspect ratio
-  function adjustVideoMeshAspect() {
-    if (arVideo.videoWidth && arVideo.videoHeight) {
-      const aspect = arVideo.videoWidth / arVideo.videoHeight;
-      if (aspect >= 1) {
-        // Landscape video
-        arVideoMesh.setAttribute('width', aspect.toFixed(3));
-        arVideoMesh.setAttribute('height', '1');
+  // 2. Auto-adjust AR video mesh & reticle to match photo & video aspect ratio
+  const cardPhoto = document.getElementById('card-photo');
+
+  function adjustDimensions() {
+    let targetRatio = 1.333; // Default 4:3 portrait
+
+    if (cardPhoto && cardPhoto.naturalWidth && cardPhoto.naturalHeight) {
+      targetRatio = cardPhoto.naturalHeight / cardPhoto.naturalWidth;
+    } else if (arVideo.videoWidth && arVideo.videoHeight) {
+      targetRatio = arVideo.videoHeight / arVideo.videoWidth;
+    }
+
+    // In MindAR coordinate system: width is normalized to 1, height is height/width ratio
+    arVideoMesh.setAttribute('width', '1');
+    arVideoMesh.setAttribute('height', targetRatio.toFixed(4));
+
+    // Adapt the mobile camera reticle frame to match portrait vs landscape photo
+    if (reticleBox) {
+      if (targetRatio >= 1) {
+        // Portrait Photo (height > width)
+        reticleBox.style.width = '260px';
+        reticleBox.style.height = `${Math.min(window.innerHeight * 0.55, 260 * targetRatio)}px`;
       } else {
-        // Portrait video
-        arVideoMesh.setAttribute('width', '1');
-        arVideoMesh.setAttribute('height', (1 / aspect).toFixed(3));
+        // Landscape Photo (width > height)
+        reticleBox.style.width = '320px';
+        reticleBox.style.height = `${320 * targetRatio}px`;
       }
     }
   }
 
-  arVideo.addEventListener('loadedmetadata', adjustVideoMeshAspect);
+  if (cardPhoto) cardPhoto.addEventListener('load', adjustDimensions);
+  arVideo.addEventListener('loadedmetadata', adjustDimensions);
+  window.addEventListener('resize', adjustDimensions);
 
   // 3. Keep video texture fresh on iOS Safari
   let textureSyncInterval = null;
