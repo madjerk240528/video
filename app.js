@@ -227,11 +227,14 @@ async function generateARPhoto() {
     let finalPhotoFile = currentPhotoFile;
     let finalPhotoDataUrl = currentPhotoDataUrl;
 
-    // Optional: Add subtle Google Lens & camera QR tag so Lens can instantly scan and auto-play
-    if (chkGoogleLens && chkGoogleLens.checked) {
-      createProgressText.textContent = 'Adding Google Lens scan tag to photo...';
+    // Check selected QR blending mode: 'ghost' (submerged) or 'none' (pure clean photo)
+    const blendModeInput = document.querySelector('input[name="qr-blend-mode"]:checked');
+    const qrMode = blendModeInput ? blendModeInput.value : 'ghost';
+
+    if (qrMode !== 'none') {
+      createProgressText.textContent = 'Submerging hidden scan code into image...';
       const targetUrl = window.location.origin + window.location.pathname.replace(/\/+$/, '') + '/?lens=1&autoplay=1';
-      const stampedBlob = await stampGoogleLensQR(currentPhotoDataUrl, targetUrl);
+      const stampedBlob = await stampSubmergedQR(currentPhotoDataUrl, targetUrl, qrMode);
       if (stampedBlob) {
         finalPhotoFile = new File([stampedBlob], currentPhotoFile.name, { type: 'image/png' });
         finalPhotoDataUrl = await fileToDataUrl(stampedBlob);
@@ -297,10 +300,15 @@ function showResultView(imgElement, displayPhotoUrl) {
 }
 
 // ========================================================
-//  GOOGLE LENS WATERMARK STAMPING
+//  SUBMERGED GHOST WATERMARK ENGINE (Zero White Box)
 // ========================================================
-function stampGoogleLensQR(imageSrc, targetUrl) {
+function stampSubmergedQR(imageSrc, targetUrl, mode = 'ghost') {
   return new Promise((resolve) => {
+    if (mode === 'none') {
+      resolve(null);
+      return;
+    }
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -309,17 +317,17 @@ function stampGoogleLensQR(imageSrc, targetUrl) {
       canvas.height = img.naturalHeight;
       const ctx = canvas.getContext('2d');
 
-      // Draw original photo
+      // 1. Draw original photo untouched
       ctx.drawImage(img, 0, 0);
 
-      // Create temporary QR container
+      // 2. Generate temporary QR code in memory
       const tempDiv = document.createElement('div');
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       document.body.appendChild(tempDiv);
 
       const minDim = Math.min(img.naturalWidth, img.naturalHeight);
-      const qrSize = Math.max(100, Math.round(minDim * 0.16));
+      const qrSize = Math.max(90, Math.round(minDim * 0.18));
 
       try {
         if (typeof QRCode === 'undefined') {
@@ -332,38 +340,59 @@ function stampGoogleLensQR(imageSrc, targetUrl) {
           text: targetUrl,
           width: qrSize,
           height: qrSize,
-          colorDark: "#120d03",
+          colorDark: "#000000",
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel.M
         });
 
         setTimeout(() => {
-          const qrCanvas = tempDiv.querySelector('canvas') || tempDiv.querySelector('img');
+          const qrCanvas = tempDiv.querySelector('canvas');
           if (qrCanvas) {
-            const pad = Math.round(qrSize * 0.12);
-            const boxW = qrSize + (pad * 2);
-            const boxH = qrSize + (pad * 2);
-            const x = canvas.width - boxW - Math.round(canvas.width * 0.03);
-            const y = canvas.height - boxH - Math.round(canvas.height * 0.03);
+            // Read QR pixel data to eliminate ALL white pixels
+            const qrCtx = qrCanvas.getContext('2d');
+            const qrImgData = qrCtx.getImageData(0, 0, qrSize, qrSize);
+            const data = qrImgData.data;
 
-            // Subtle luxury badge background
+            // Create transparent canvas with ONLY the dark modules
+            const transCanvas = document.createElement('canvas');
+            transCanvas.width = qrSize;
+            transCanvas.height = qrSize;
+            const transCtx = transCanvas.getContext('2d');
+            const transImgData = transCtx.createImageData(qrSize, qrSize);
+            const tData = transImgData.data;
+
+            // Submerged alpha: 15% (0.15) - seamlessly submerged with photo texture
+            const alphaByte = 38; // ~15% opacity
+
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i];
+              const g = data[i + 1];
+              const b = data[i + 2];
+              // If pixel is dark (part of QR code modules)
+              if (r < 120 && g < 120 && b < 120) {
+                tData[i] = 10;          // Soft black R
+                tData[i + 1] = 10;      // Soft black G
+                tData[i + 2] = 10;      // Soft black B
+                tData[i + 3] = alphaByte; // 15% submerged opacity
+              } else {
+                // White background pixel -> 100% transparent (no white box!)
+                tData[i + 3] = 0;
+              }
+            }
+            transCtx.putImageData(transImgData, 0, 0);
+
+            // Stamp directly onto the photo in bottom-right corner
+            // NO white box, NO border, NO shadow
+            const pad = Math.round(canvas.width * 0.025);
+            const x = canvas.width - qrSize - pad;
+            const y = canvas.height - qrSize - pad;
+
             ctx.save();
-            ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
-            ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetY = 4;
-            roundRect(ctx, x, y, boxW, boxH, Math.max(6, Math.round(pad * 0.6)));
-            ctx.fill();
-
-            // Gold border
-            ctx.lineWidth = Math.max(2, Math.round(minDim * 0.003));
-            ctx.strokeStyle = "rgba(212, 175, 55, 0.85)";
-            ctx.stroke();
-
-            // Draw QR code inside
-            ctx.drawImage(qrCanvas, x + pad, y + pad, qrSize, qrSize);
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.drawImage(transCanvas, x, y, qrSize, qrSize);
             ctx.restore();
           }
+
           tempDiv.remove();
 
           canvas.toBlob((blob) => {
@@ -372,7 +401,7 @@ function stampGoogleLensQR(imageSrc, targetUrl) {
         }, 120);
 
       } catch (err) {
-        console.warn('QR generation fallback:', err);
+        console.warn('Submerged QR fallback:', err);
         tempDiv.remove();
         resolve(null);
       }

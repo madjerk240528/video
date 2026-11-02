@@ -199,15 +199,31 @@
           </div>
         </div>
 
-        <!-- Google Lens & Camera Scanning Option -->
+        <!-- Submerged QR / Visibility Mode -->
         <div style="margin-bottom:16px; background:rgba(212, 175, 55, 0.08); border:1px solid var(--surface-border); border-radius:var(--radius-md); padding:14px;">
-          <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.88rem; font-weight:700; color:#fff;">
-            <input type="checkbox" id="chk-google-lens" checked style="accent-color:var(--gold-primary); width:18px; height:18px;">
-            <span>🔍 Enable Google Lens &amp; Phone Camera Scanning</span>
-          </label>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; padding-left:28px; line-height:1.45;">
-            Adds a clean, subtle scan tag in the corner of your photo. When anyone points <strong>Google Lens</strong>, <strong>Google Photos</strong>, or their phone's camera at the printed picture, the video automatically plays!
-          </p>
+          <div style="font-size:0.86rem; font-weight:700; color:#fff; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+            <span>👻</span><span>Photo Appearance &amp; QR Blending</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--gold-light);">
+              <input type="radio" name="qr-blend-mode" value="ghost" checked style="accent-color:var(--gold-primary); margin-top:2px;">
+              <div>
+                <strong>Submerge with Image (Invisible to quick glance)</strong>
+                <div style="font-size:0.73rem; color:var(--text-muted); line-height:1.35; margin-top:2px;">
+                  No white box or borders. The code is submerged directly into the image colors like a faint hidden watermark.
+                </div>
+              </div>
+            </label>
+            <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:0.82rem; color:#fff;">
+              <input type="radio" name="qr-blend-mode" value="none" style="accent-color:var(--gold-primary); margin-top:2px;">
+              <div>
+                <strong>100% Pure Clean Photo (Zero QR code)</strong>
+                <div style="font-size:0.73rem; color:var(--text-muted); line-height:1.35; margin-top:2px;">
+                  Complete clean photo with zero modifications. Scans seamlessly using the built-in 3D AR Camera Scanner on this site!
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
 
         <!-- Mandatory Generate Button -->
