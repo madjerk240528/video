@@ -128,6 +128,12 @@ btnCloseIosModal && btnCloseIosModal.addEventListener('click', () => {
   if (iosInstallModal) iosInstallModal.classList.remove('active');
 });
 
+// Pre-configured memories mapping: Target Index -> Custom Video URL
+// The visual features of the photo ITSELF are the identity! No visible QR code needed on the photo.
+const BUILTIN_MEMORIES = {
+  0: "https://drive.usercontent.google.com/download?id=1CoO8sJs_dJHtM2lVsv6ugVpYqgRSn6mt&export=download&authuser=0"
+};
+
 // ========================================================
 //  INITIALIZATION & URL PARAMETER PARSER (?v=... &img=...)
 // ========================================================
@@ -142,8 +148,29 @@ btnCloseIosModal && btnCloseIosModal.addEventListener('click', () => {
   const rawVideoParam = params.get('v') || params.get('video');
   const rawImageParam = params.get('img') || params.get('photo') || params.get('target');
 
+  // Load photo-to-video mapping from memories.json or built-in registry
+  let activeCustomVideo = null;
+  try {
+    const memResp = await fetch('memories.json?' + Date.now());
+    if (memResp.ok) {
+      const memData = await memResp.json();
+      if (memData && memData['0'] && memData['0'].videoUrl) {
+        activeCustomVideo = memData['0'].videoUrl;
+      }
+    }
+  } catch (e) {}
+
+  if (!activeCustomVideo && BUILTIN_MEMORIES[0]) {
+    activeCustomVideo = BUILTIN_MEMORIES[0];
+  }
+
+  try {
+    const saved = localStorage.getItem('ar_active_video');
+    if (saved) activeCustomVideo = saved;
+  } catch (e) {}
+
   if (rawVideoParam) {
-    // QR Code scan contains custom cloud video!
+    // URL contains custom video parameter
     const resolvedVideo = resolveCloudVideoUrl(rawVideoParam);
     activeVideoUrl = resolvedVideo;
 
@@ -158,12 +185,21 @@ btnCloseIosModal && btnCloseIosModal.addEventListener('click', () => {
       activePhotoDataUrl = resolvedImg;
       await startCompileTargets(resolvedImg);
     } else {
-      // Default to repo's compiled targets if available, or prompt user
       compiledTargetUrl = 'targets.mind';
       compileDone = true;
       updateScanButtonState();
     }
+  } else if (activeCustomVideo) {
+    // Photo's visual identity matched from memories registry (No QR code needed!)
+    activeVideoUrl = activeCustomVideo;
+    compiledTargetUrl = 'targets.mind';
+    compileDone = true;
+    updateScanButtonState();
   } else {
+    // Fall back to sample flower video if no paired video exists
+    activeVideoUrl = 'video.mp4';
+    compiledTargetUrl = 'targets.mind';
+    compileDone = true;
     updateScanButtonState();
   }
 })();
@@ -470,6 +506,13 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   vid.setAttribute('webkit-playsinline', '');
   vid.setAttribute('muted', '');
   vid.setAttribute('loop', '');
+  vid.onerror = () => {
+    console.warn('Custom video error or network blocked, falling back to sample flower video.');
+    if (vid.src !== 'video.mp4') {
+      vid.src = 'video.mp4';
+      vid.play().catch(() => {});
+    }
+  };
   assets.appendChild(vid);
   scene.appendChild(assets);
 
