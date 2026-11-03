@@ -37,13 +37,14 @@ export function getMediaInfo(rawUrl) {
   // 1. Google Drive
   const gDriveId = extractGoogleDriveId(url);
   if (gDriveId) {
+    const directStream = `https://drive.usercontent.google.com/download?id=${gDriveId}&export=download&authuser=0`;
     return {
       type: 'gdrive',
       id: gDriveId,
       isGoogleDrive: true,
       embedUrl: `https://drive.google.com/file/d/${gDriveId}/preview`,
-      streamUrl: `https://drive.google.com/file/d/${gDriveId}/preview`,
-      isDirectVideo: false
+      streamUrl: directStream,
+      isDirectVideo: true
     };
   }
 

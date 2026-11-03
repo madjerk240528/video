@@ -402,10 +402,20 @@ h1 {
 }
 
 /* AR Viewport Overlay */
+/* Hide default A-Frame VR & AR buttons */
+.a-enter-vr,
+.a-enter-ar,
+.a-loader-title {
+  display: none !important;
+}
+
 #ar-container {
   display: none;
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   z-index: 1000;
   background: transparent !important;
   overflow: hidden;
@@ -415,8 +425,8 @@ h1 {
   display: block;
 }
 
-/* Ensure MindAR camera feed created at z-index -2 is fully visible */
-#ar-container video {
+/* Ensure MindAR camera feed created at z-index -2 is positioned cleanly without distorting aspect ratio */
+#ar-container > video:not(#ar-video-asset) {
   position: absolute !important;
   top: 0;
   left: 0;
@@ -428,6 +438,11 @@ h1 {
 
 #ar-container .a-canvas {
   background: transparent !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Floating HUD Controls on top of AR */

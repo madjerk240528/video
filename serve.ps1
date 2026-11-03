@@ -54,12 +54,57 @@ try {
 
         # Parse request line: GET /index.html HTTP/1.1
         $parts = $line -split " "
+        $method = if ($parts.Length -gt 0) { $parts[0].ToUpper() } else { "GET" }
         $rawPath = if ($parts.Length -gt 1) { $parts[1] } else { "/" }
+
+        # Read remaining headers
+        $contentLength = 0
+        while ($true) {
+            $hLine = $reader.ReadLine()
+            if ([string]::IsNullOrEmpty($hLine)) { break }
+            if ($hLine -match "(?i)Content-Length:\s*(\d+)") {
+                $contentLength = [int]$Matches[1]
+            }
+        }
 
         # Strip query strings (?v=... &img=...)
         $cleanPath = ($rawPath -split "\?")[0].TrimStart('/')
         if ([string]::IsNullOrEmpty($cleanPath)) {
             $cleanPath = "index.html"
+        }
+
+        if ($cleanPath -eq "log") {
+            Write-Host "CLIENT LOG: $rawPath" -ForegroundColor Cyan
+            $res = "OK"
+            $resBytes = [System.Text.Encoding]::UTF8.GetBytes($res)
+            $header = "HTTP/1.1 200 OK`r`nContent-Type: text/plain`r`nContent-Length: 2`r`nAccess-Control-Allow-Origin: *`r`nConnection: close`r`n`r`n"
+            $hBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
+            $stream.Write($hBytes, 0, $hBytes.Length)
+            $stream.Write($resBytes, 0, $resBytes.Length)
+            $stream.Flush()
+            $client.Close()
+            continue
+        }
+
+        # Handle POST upload-target
+        if ($method -eq "POST" -and ($cleanPath -eq "upload-target" -or $cleanPath -eq "api/save-target")) {
+            $bodyBytes = [byte[]]::new($contentLength)
+            $totalRead = 0
+            while ($totalRead -lt $contentLength) {
+                $read = $stream.Read($bodyBytes, $totalRead, $contentLength - $totalRead)
+                if ($read -le 0) { break }
+                $totalRead += $read
+            }
+            [System.IO.File]::WriteAllBytes((Join-Path $folder "targets.mind"), $bodyBytes)
+            $res = "Target saved: $contentLength bytes"
+            $resBytes = [System.Text.Encoding]::UTF8.GetBytes($res)
+            $header = "HTTP/1.1 200 OK`r`nContent-Type: text/plain`r`nContent-Length: $($resBytes.Length)`r`nAccess-Control-Allow-Origin: *`r`nConnection: close`r`n`r`n"
+            $hBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
+            $stream.Write($hBytes, 0, $hBytes.Length)
+            $stream.Write($resBytes, 0, $resBytes.Length)
+            $stream.Flush()
+            $client.Close()
+            continue
         }
 
         $filePath = Join-Path $folder $cleanPath

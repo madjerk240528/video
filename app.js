@@ -606,14 +606,12 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   scene.setAttribute('vr-mode-ui', 'enabled: false');
   scene.setAttribute('device-orientation-permission-ui', 'enabled: false');
 
-  // Video Asset (only for direct videos; avoid passing Google Drive HTML preview to <video>)
+  // Video Asset Element (3D AR video texture)
   const assets = document.createElement('a-assets');
   const vid = document.createElement('video');
   vid.id = 'ar-video-asset';
-  if (!isCurrentArGoogleDrive) {
-    vid.src = (media ? media.streamUrl : videoSrc);
-    vid.crossOrigin = 'anonymous';
-  }
+  vid.src = (media && media.streamUrl) ? media.streamUrl : videoSrc;
+  vid.crossOrigin = 'anonymous';
   vid.setAttribute('preload', 'auto');
   vid.setAttribute('playsinline', '');
   vid.setAttribute('webkit-playsinline', '');
@@ -633,18 +631,14 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   anchor.id = 'ar-anchor';
   anchor.setAttribute('mindar-image-target', 'targetIndex: 0');
 
-  // Video Plane in AR (only used for direct streamable videos)
+  // Video Plane in 3D AR ("VR Hold" Screen)
   const mesh = document.createElement('a-plane');
   mesh.id = 'ar-video-mesh';
-  if (!isCurrentArGoogleDrive) {
-    mesh.setAttribute('src', '#ar-video-asset');
-    mesh.setAttribute('material', 'shader: flat; transparent: true;');
-  } else {
-    mesh.setAttribute('visible', 'false');
-  }
+  mesh.setAttribute('src', '#ar-video-asset');
   mesh.setAttribute('position', '0 0 0');
   mesh.setAttribute('width', '1');
   mesh.setAttribute('height', '1');
+  mesh.setAttribute('material', 'shader: flat; transparent: true;');
   anchor.appendChild(mesh);
   scene.appendChild(anchor);
 
@@ -653,28 +647,25 @@ function buildDynamicArScene(targetSrc, videoSrc) {
 
 function registerAnchorEvents() {
   if (!arAnchor) return;
-  if (arVideo && !isCurrentArGoogleDrive) {
+  if (arVideo) {
     arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
   }
 
   arAnchor.addEventListener('targetFound', () => {
-    if (isCurrentArGoogleDrive) {
-      if (arGdriveCinema) arGdriveCinema.classList.add('active');
-    } else if (arVideo) {
+    if (arVideo) {
       arVideo.muted = isArMuted;
       arVideo.play().catch(() => {});
+      adjustVideoMesh();
     }
     promptPill && promptPill.classList.add('target-detected');
     if (promptIcon) promptIcon.textContent = '✨';
     if (promptText) promptText.textContent = 'Memory Playing!';
     if (scanLaser) scanLaser.style.display = 'none';
-    if (!isCurrentArGoogleDrive && isArMuted && tapUnmutePill) tapUnmutePill.classList.add('active');
+    if (isArMuted && tapUnmutePill) tapUnmutePill.classList.add('active');
   });
 
   arAnchor.addEventListener('targetLost', () => {
-    if (isCurrentArGoogleDrive) {
-      if (arGdriveCinema) arGdriveCinema.classList.remove('active');
-    } else if (arVideo) {
+    if (arVideo) {
       arVideo.pause();
     }
     promptPill && promptPill.classList.remove('target-detected');
