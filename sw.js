@@ -1,42 +1,19 @@
-// Service Worker for AR Photo Scanner PWA
-const CACHE_NAME = 'ar-scanner-v2';
-const ASSETS_TO_CACHE = [
-  './scan.html',
-  './scan.js',
-  './cloud-storage.js',
-  './style.css',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
-];
+// Service Worker for AR Living Memory
+const CACHE_NAME = 'ar-fresh-v1';
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
-  );
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
     caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
+      return Promise.all(keys.map((k) => caches.delete(k)));
     }).then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    }).catch(() => {
-      // Fallback for offline navigation
-      if (event.request.mode === 'navigate') {
-        return caches.match('./scan.html');
-      }
-    })
-  );
+self.addEventListener('fetch', (e) => {
+  // Always fetch fresh network content for AR assets and media
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });

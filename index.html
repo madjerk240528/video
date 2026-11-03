@@ -2,440 +2,163 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>AR Living Memory — Create &amp; View AR Photos</title>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👑</text></svg>">
-  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#07080d">
+  <title>AR Living Memory — Creator Studio &amp; Cloud Manager</title>
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-
-  <!-- A-Frame & MindAR (always loaded, AR scene created on-demand) -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <!-- QRCode.js for Google Lens compatibility -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
   <link rel="stylesheet" href="style.css">
-
-  <style>
-    /* Specific styles for the 2-column layout */
-    .columns-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    @media (max-width: 480px) {
-      .columns-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .upload-col-box {
-      border: 2px dashed rgba(212, 175, 55, 0.35);
-      border-radius: var(--radius-md);
-      padding: 24px 14px 18px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.25s;
-      background: rgba(212, 175, 55, 0.03);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 160px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .upload-col-box:hover, .upload-col-box.dragover {
-      border-color: var(--gold-primary);
-      background: rgba(212, 175, 55, 0.09);
-      box-shadow: 0 0 22px rgba(212, 175, 55, 0.2);
-    }
-
-    .upload-col-box.done {
-      border-style: solid;
-      border-color: rgba(34, 197, 94, 0.65);
-      background: rgba(34, 197, 94, 0.06);
-    }
-
-    .col-icon { font-size: 2.2rem; margin-bottom: 8px; }
-    .col-title { font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
-    .col-desc { font-size: 0.74rem; color: var(--text-muted); }
-    .col-info { font-size: 0.72rem; color: var(--gold-vivid); margin-top: 6px; font-weight: 600; display: none; }
-    .upload-col-box.done .col-info { display: block; }
-
-    .media-thumb {
-      display: none;
-      width: 100%;
-      max-height: 110px;
-      object-fit: contain;
-      border-radius: 8px;
-      margin-top: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .upload-col-box.done .media-thumb { display: block; }
-
-    .btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      filter: grayscale(0.5);
-      box-shadow: none;
-      transform: none !important;
-    }
-
-    .scan-view-box {
-      border: 2px dashed rgba(212, 175, 55, 0.45);
-      border-radius: var(--radius-lg);
-      padding: 32px 18px;
-      text-align: center;
-      background: rgba(14, 17, 26, 0.7);
-      cursor: pointer;
-      transition: all 0.25s;
-      margin-bottom: 16px;
-    }
-
-    .scan-view-box:hover, .scan-view-box.dragover {
-      border-color: var(--gold-primary);
-      background: rgba(212, 175, 55, 0.1);
-      box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
-    }
-  </style>
 </head>
-<body>
+<body class="creator-page">
 
-  <div class="bg-ambient">
-    <div class="ambient-blob ambient-1"></div>
-    <div class="ambient-blob ambient-2"></div>
-  </div>
-
-  <main id="app-container">
-
-    <!-- In-App Browser Warning -->
-    <div id="inapp-banner" class="inapp-banner">
-      <span>⚠️</span>
-      <span>Opened inside an in-app browser. Tap <strong>•••</strong> → <strong>"Open in Chrome / Safari"</strong> for camera and file features to work smoothly.</span>
-    </div>
-
-    <!-- Google Lens Detection Banner -->
-    <div id="lens-banner" style="display:none; background:rgba(212, 175, 55, 0.16); border:1px solid var(--gold-primary); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:16px; text-align:center; color:var(--gold-light); font-weight:700; font-size:0.9rem; box-shadow:0 0 20px rgba(212,175,55,0.25);">
-      🔍 Google Lens Scan Detected — Auto-Playing Video Memory!
-    </div>
-
-    <!-- Header -->
-    <header>
-      <div class="badge">
-        <span class="badge-dot"></span>
-        <span>Living Memory AR</span>
-      </div>
-      <h1>Living Photo Memory</h1>
-      <p class="subtitle">Turn any photo into a magical video memory that plays when scanned or opened.</p>
-    </header>
-
-    <!-- Navigation: Creator vs Studio vs Scanner App -->
-    <nav class="nav-tabs">
-      <button class="tab-btn active" style="cursor:default;">
-        <span class="tab-icon">🪄</span>
-        <span>Create AR Photo</span>
-      </button>
-      <a href="studio.html" class="tab-btn" style="text-decoration:none;">
-        <span class="tab-icon">🖨️</span>
-        <span>Print Studio</span>
-      </a>
-      <a href="scan.html" class="tab-btn" style="text-decoration:none;">
-        <span class="tab-icon">📷</span>
-        <span>Scanner App ➔</span>
-      </a>
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="logo">✨ AR Living Memory</div>
+    <nav class="app-nav">
+      <a href="index.html" class="nav-link active">🎨 Create &amp; Edit</a>
+      <a href="scan.html" class="nav-link">📷 Scanner</a>
     </nav>
+  </header>
 
-    <!-- ========================================================
-         OPTION 1: CREATE AR PHOTO PANEL
-         ======================================================== -->
-    <section id="panel-create" class="tab-panel active">
+  <main class="creator-main">
 
-      <!-- Form View: 2 Mandatory Columns -->
-      <div id="create-form-view">
-        <div style="text-align:center; margin-bottom:14px;">
-          <p style="font-size:0.84rem; color:var(--text-gold); font-weight:600;">
-            Upload both a photo and video below (both mandatory), then tap Generate.
-          </p>
-        </div>
-
-        <div class="columns-grid">
-
-          <!-- Column 1: Photo (Mandatory) -->
-          <div class="upload-col-box" id="create-photo-box">
-            <span class="mandatory-badge">* Mandatory</span>
-            <span class="status-badge">✓ Selected</span>
-            <div class="col-icon">🖼️</div>
-            <div class="col-title">1. Upload Photo</div>
-            <div class="col-desc">JPG, PNG format</div>
-            <img class="media-thumb" id="create-photo-thumb" alt="Uploaded photo thumbnail">
-            <div class="col-info" id="create-photo-info"></div>
-            <input type="file" id="create-photo-input" accept="image/*" style="display:none">
-          </div>
-
-          <!-- Column 2: Video (File Upload OR Google Drive Link) -->
-          <div class="upload-col-box" id="create-video-box">
-            <span class="mandatory-badge">* Mandatory</span>
-            <span class="status-badge">✓ Selected</span>
-            <div class="col-icon">🎬</div>
-            <div class="col-title">2. Choose Video</div>
-            <div class="col-desc">Upload file OR paste Google Drive link</div>
-            <video class="media-thumb" id="create-video-thumb" muted playsinline></video>
-            <iframe id="create-video-iframe" class="media-thumb" src="" allow="autoplay" allowfullscreen style="display:none; width:100%; height:120px; border:1px solid rgba(212,175,55,0.4); border-radius:8px; margin-top:8px;"></iframe>
-            <div class="col-info" id="create-video-info"></div>
-            <input type="file" id="create-video-input" accept="video/*" style="display:none">
-            <div style="margin-top:10px; width:100%;" onclick="event.stopPropagation()">
-              <input type="url" id="create-video-url-input" placeholder="Paste Google Drive or Video link" style="width:100%; background:rgba(0,0,0,0.6); border:1px solid var(--surface-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:0.75rem;">
-              <div id="drive-access-hint" style="font-size:0.68rem; color:var(--text-gold); margin-top:5px; text-align:left; display:none;">
-                ℹ️ Ensure Drive link is: <strong>Anyone with link can view</strong>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Progress / Compile Status -->
-        <div class="compile-bar-wrap" id="create-progress-box" style="margin-bottom:16px;">
-          <div class="compile-status" id="create-progress-text">Preparing AR Magic...</div>
-          <div class="compile-bar-track">
-            <div class="compile-bar-fill" id="create-progress-fill"></div>
-          </div>
-        </div>
-
-        <!-- Mandatory Generate Button -->
-        <button id="btn-generate-ar" class="btn btn-primary" disabled>
-          <span class="btn-icon">✨</span>
-          <span>Generate AR Photo</span>
-        </button>
-        <p id="generate-hint" style="text-align:center; font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
-          * Please select both a photo and a video above to enable Generate.
-        </p>
-
-        <!-- Informational Guide -->
-        <div class="info-card" style="margin-top:22px;">
-          <div class="info-header"><span>💡</span><span>How the Magic Works:</span></div>
-          <ul class="info-list">
-            <li><span class="step-num">1</span><span>Upload your photo and video (or paste Google Drive link), then tap <strong>Generate</strong>.</span></li>
-            <li><span class="step-num">2</span><span>Download the resulting photo to print or send to friends.</span></li>
-            <li><span class="step-num">3</span><span>When opened or scanned with <strong>View / Scan</strong>, your custom video automatically plays!</span></li>
-          </ul>
-        </div>
+    <!-- ===== HERO ===== -->
+    <section class="hero-section">
+      <h1 class="hero-title">Cloud AR Living Photo<br><span class="gold">Creator &amp; Editor</span></h1>
+      <p class="hero-sub">
+        Connect photos to videos from <strong>Google Drive</strong> or direct cloud storage.<br>
+        Scan with any phone camera anywhere in the world — no app install needed.
+      </p>
+      <div class="hero-steps">
+        <div class="hero-step"><div class="step-num">1</div><div>Upload/Edit<br>Photo</div></div>
+        <div class="hero-arrow">→</div>
+        <div class="hero-step"><div class="step-num">2</div><div>Attach Drive<br>Video Link</div></div>
+        <div class="hero-arrow">→</div>
+        <div class="hero-step"><div class="step-num">3</div><div>Cloud Syncs<br>Instantly</div></div>
+        <div class="hero-arrow">→</div>
+        <div class="hero-step"><div class="step-num">4</div><div>Scan &amp; Play<br>on Any Phone ✨</div></div>
       </div>
-
-      <!-- Result View: Shown after clicking Generate -->
-      <div id="create-result-view" style="display:none;">
-        <div class="result-card">
-          <div style="margin-bottom:12px;">
-            <div class="badge" style="margin-bottom:8px;">
-              <span class="badge-dot"></span>
-              <span>AR Photo Generated</span>
-            </div>
-            <h3 style="color:var(--gold-light); font-size:1.3rem; margin-bottom:4px;">Your Photo is Ready!</h3>
-            <p style="color:var(--text-muted); font-size:0.82rem;">
-              This photo is paired with your video. You can download it, print it in Studio with a QR code, or share the direct link!
-            </p>
-          </div>
-
-          <div class="result-image-wrap">
-            <img id="result-photo-img" alt="Generated AR Photo">
-            <div class="result-tag"><span>🎬</span><span>Embedded Video Inside</span></div>
-          </div>
-
-          <div id="result-photo-meta" style="font-size:0.8rem; color:var(--text-gold); margin-bottom:16px; font-weight:600;"></div>
-
-          <div class="action-grid" style="margin-bottom:0;">
-            <a id="btn-download-result" class="btn btn-primary" download="magic-photo.png" style="text-decoration:none;">
-              <span class="btn-icon">⬇️</span>
-              <span>Download Magic Photo</span>
-            </a>
-
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <a href="studio.html" class="btn btn-secondary" style="flex:1; min-width:130px; text-decoration:none; justify-content:center;">
-                <span class="btn-icon">🖨️</span>
-                <span>Print in Studio</span>
-              </a>
-              <button id="btn-copy-result-link" class="btn btn-secondary" style="flex:1; min-width:130px;">
-                <span class="btn-icon">📋</span>
-                <span>Copy Share Link</span>
-              </button>
-            </div>
-
-            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
-              <button id="btn-test-result-video" class="btn btn-secondary" style="flex:1; min-width:130px;">
-                <span class="btn-icon">▶</span>
-                <span>Test Video</span>
-              </button>
-              <a href="scan.html" class="btn btn-secondary" style="flex:1; min-width:130px; border-color:var(--gold-primary); text-decoration:none; justify-content:center;">
-                <span class="btn-icon">📷</span>
-                <span>Open Scanner App ➔</span>
-              </a>
-            </div>
-
-            <button id="btn-create-reset" class="studio-btn-link" style="justify-content:center; padding:10px; margin-top:8px; cursor:pointer; background:none;">
-              <span>🔄</span><span>Create Another AR Photo</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
     </section>
 
-    <!-- ========================================================
-         OPTION 2: VIEW / SCAN AR PHOTO PANEL
-         ======================================================== -->
-    <section id="panel-view" class="tab-panel">
+    <!-- ===== UPLOAD / CREATE SECTION ===== -->
+    <section class="card" id="upload-section">
+      <div class="card-title">✨ Create New AR Memory</div>
 
-      <!-- Upload Zone for Magic Photo -->
-      <div id="view-upload-section">
-        <div class="scan-view-box" id="view-drop-box">
-          <div style="font-size:2.8rem; margin-bottom:10px;">📤</div>
-          <h3 style="color:#fff; font-size:1.15rem; margin-bottom:6px;">Upload Photo to Play Video</h3>
-          <p style="color:var(--text-muted); font-size:0.82rem; max-width:320px; margin:0 auto 10px;">
-            Select or drop your photo here — the embedded video will start playing automatically!
-          </p>
-          <div class="badge" style="margin-bottom:0;">
-            <span>Tap to browse files</span>
+      <!-- Photo Drop Zone -->
+      <div class="field-label">① Choose Photo (The physical artwork/picture to scan)</div>
+      <div class="drop-zone" id="photo-drop">
+        <input type="file" id="photo-input" accept="image/*" hidden>
+        <div id="photo-drop-label" class="drop-label">
+          <div class="drop-icon">🖼️</div>
+          <div class="drop-text">Drag &amp; drop photo here<br>or <span class="link-text">click to browse</span></div>
+          <div class="drop-hint">JPEG or PNG — visual features are extracted for 3D camera tracking</div>
+        </div>
+        <img id="photo-preview" class="drop-preview" alt="Photo preview" style="display:none">
+      </div>
+
+      <!-- Video Selection Tabs -->
+      <div class="field-label" style="margin-top:24px">② Choose Video (Plays in 3D AR when scanned)</div>
+      <div class="tab-buttons">
+        <button type="button" class="tab-btn active" id="tab-btn-drive">☁️ Google Drive / Cloud Link</button>
+        <button type="button" class="tab-btn" id="tab-btn-file">📁 Upload Video File</button>
+      </div>
+
+      <!-- Drive link input -->
+      <div id="pane-video-drive" class="tab-pane active">
+        <input id="input-drive-link" type="text" class="text-input" 
+          placeholder="Paste Google Drive share link (e.g. https://drive.google.com/file/d/.../view)">
+        <div class="hint-text">💡 Make sure the Google Drive link access is set to <strong>"Anyone with the link can view"</strong>.</div>
+      </div>
+
+      <!-- Video file drop -->
+      <div id="pane-video-file" class="tab-pane" style="display:none">
+        <div class="drop-zone" id="video-drop">
+          <input type="file" id="video-input" accept="video/*" hidden>
+          <div id="video-drop-label" class="drop-label">
+            <div class="drop-icon">🎬</div>
+            <div class="drop-text">Drag &amp; drop video here<br>or <span class="link-text">click to browse</span></div>
+            <div class="drop-hint">MP4, MOV (max 25MB recommended)</div>
           </div>
-          <input type="file" id="view-file-input" accept="image/*" style="display:none">
+          <video id="video-preview" class="drop-preview" muted playsinline loop controls style="display:none"></video>
         </div>
       </div>
 
-      <!-- In-Tab Video Player (Plays video directly on this tab when photo is uploaded) -->
-      <div id="view-player-section" style="display:none;">
-        <div class="tab-video-player-wrap">
-          <div class="player-overlay-tag">
-            <span>✨</span><span>Memory Playing</span>
-          </div>
-          <video id="view-tab-video" controls autoplay playsinline webkit-playsinline style="width:100%;display:none;"></video>
-          <iframe id="view-tab-iframe" src="" style="width:100%;height:300px;border:none;display:none;" allow="autoplay" allowfullscreen></iframe>
-        </div>
+      <!-- Title -->
+      <div class="field-label" style="margin-top:20px">③ Memory Title (optional)</div>
+      <input id="memory-title" type="text" class="text-input" placeholder="e.g. Children Portrait, Birthday Celebration...">
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-          <div>
-            <div id="view-player-title" style="font-weight:700; color:#fff; font-size:1rem;">Living Memory</div>
-            <div id="view-player-subtitle" style="font-size:0.78rem; color:var(--text-gold);">Playing from uploaded photo</div>
-          </div>
-          <button id="btn-view-reset" class="studio-btn-link" style="cursor:pointer; background:none;">
-            <span>🔄</span><span>Upload Another</span>
-          </button>
-        </div>
+      <!-- Create Button -->
+      <button id="btn-create" class="btn-gold btn-big" disabled>
+        ✨ Build &amp; Register AR Experience
+      </button>
+    </section>
 
-        <!-- Button to switch to 3D Camera AR using this active photo -->
-        <button id="btn-view-launch-ar" class="btn btn-primary" style="margin-bottom:16px;">
-          <span class="btn-icon">📷</span>
-          <span>Point Camera &amp; Scan in 3D AR</span>
-        </button>
+    <!-- ===== PROGRESS SECTION ===== -->
+    <section class="card" id="progress-section" style="display:none">
+      <div class="progress-icon">⚙️</div>
+      <div class="progress-main-title" id="progress-title">Processing AR Memory...</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
       </div>
-
-      <!-- Divider -->
-      <div class="gold-divider">
-        <span>OR SCAN PRINTED PHOTO</span>
+      <div class="progress-sub" id="progress-sub"></div>
+      <div class="progress-note">
+        Compiling AR tracking visual features in your browser.<br>
+        Please keep this tab open.
       </div>
+    </section>
 
-      <!-- Live AR Camera Scanner Button -->
-      <div class="photo-card-container" style="text-align:center; padding:20px;">
-        <div style="font-size:2rem; margin-bottom:8px;">📷</div>
-        <h4 style="color:#fff; margin-bottom:6px; font-size:1.05rem;">Point Phone Camera &amp; Scan</h4>
-        <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:16px;">
-          Point your phone camera at the physical printed photo (or on another screen) to watch the video play in 3D AR right on top of it.
-        </p>
-        <button id="btn-start-camera-ar" class="btn btn-primary">
-          <span class="btn-icon">✨</span>
-          <span>Open Camera Scanner</span>
-        </button>
+    <!-- ===== DONE SECTION ===== -->
+    <section class="card done-card" id="done-section" style="display:none">
+      <div class="done-icon">🎉</div>
+      <div class="done-title">AR Experience Created!</div>
+      <div class="done-sub">
+        The memory has been registered. You can scan the photo using any mobile device camera.
       </div>
+      <div class="done-actions">
+        <a href="scan.html" class="btn-gold">📷 Open Scanner App →</a>
+        <button class="btn-outline" id="btn-add-another">➕ Add Another Memory</button>
+      </div>
+    </section>
 
+    <!-- ===== MEMORIES LIST & MANAGEMENT ===== -->
+    <section class="card" style="margin-top:32px">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:0">📚 Registered AR Memories</div>
+        <button id="btn-export-json" class="btn-sm btn-outline">📥 Export memories.json</button>
+      </div>
+      <div id="memories-list">
+        <div class="loading-msg">Loading memories...</div>
+      </div>
     </section>
 
   </main>
 
-  <!-- ========================================================
-       LIVE AR CAMERA VIEWPORT (MindAR + A-Frame)
-       ======================================================== -->
-  <div id="ar-container">
-    <!-- Floating Cinema Overlay for Google Drive Videos in AR -->
-    <div id="ar-gdrive-cinema" class="ar-gdrive-cinema">
-      <div class="ar-cinema-header">
-        <div class="ar-cinema-badge">✨ Photo Detected • Memory Playing</div>
-        <button id="btn-close-gdrive-cinema" class="ar-cinema-close">✕</button>
+  <!-- ===== EDIT MEMORY MODAL ===== -->
+  <div id="edit-modal" class="modal-backdrop" style="display:none">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">✏️ Edit AR Memory</div>
+        <button id="btn-close-edit" class="modal-close">✕</button>
       </div>
-      <div class="ar-cinema-body">
-        <iframe id="ar-gdrive-iframe" src="" allow="autoplay" allowfullscreen></iframe>
-      </div>
-    </div>
+      
+      <div class="field-label">Memory Title</div>
+      <input id="edit-title" type="text" class="text-input" placeholder="Title">
 
-    <div class="ar-overlay">
-      <div class="ar-top-bar">
-        <button id="btn-exit-ar" class="ar-exit-btn"><span>✕</span><span>Close AR</span></button>
-        <button id="btn-toggle-sound" class="ar-audio-btn"><span id="sound-icon">🔇</span></button>
-      </div>
+      <div class="field-label">Google Drive or Cloud Video Link</div>
+      <input id="edit-video-url" type="text" class="text-input" placeholder="https://drive.google.com/file/d/.../view">
 
-      <div id="tap-unmute-pill" class="tap-unmute-pill"><span>🔊</span><span>Tap to enable sound</span></div>
+      <div class="field-label">Change Photo (optional)</div>
+      <input type="file" id="edit-photo-input" accept="image/*" class="text-input" style="padding:8px">
 
-      <div class="ar-reticle-box" id="reticle-box">
-        <div class="reticle-corner c-tl"></div>
-        <div class="reticle-corner c-tr"></div>
-        <div class="reticle-corner c-bl"></div>
-        <div class="reticle-corner c-br"></div>
-        <div class="scan-laser-line" id="scan-laser"></div>
-      </div>
-
-      <div class="ar-bottom-prompt">
-        <div class="prompt-pill" id="prompt-pill">
-          <span id="prompt-icon">🔍</span>
-          <span id="prompt-text">Point camera at the photo</span>
-        </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button id="btn-save-edit" class="btn-gold" style="flex:1">💾 Save Changes</button>
+        <button id="btn-cancel-edit" class="btn-outline">Cancel</button>
       </div>
     </div>
   </div>
 
-  <!-- Video Test / Preview Modal -->
-  <div id="video-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button id="btn-close-modal" class="modal-close-btn">✕</button>
-      <div class="modal-video-container">
-        <video id="modal-video-player" controls playsinline webkit-playsinline style="width:100%;height:100%;display:none;"></video>
-        <iframe id="modal-video-iframe" src="" style="width:100%;height:100%;border:none;display:none;" allow="autoplay" allowfullscreen></iframe>
-      </div>
-      <div class="modal-body">
-        <h3 id="modal-video-title">Embedded Video Preview</h3>
-        <p id="modal-video-subtitle">This is the video that plays when the photo is opened or scanned.</p>
-        <div id="modal-gdrive-links" style="margin-top:10px; display:none;">
-          <a id="modal-open-drive-link" href="#" target="_blank" rel="noopener noreferrer" style="color:var(--gold-vivid); font-size:0.8rem; text-decoration:underline; font-weight:600;">
-            Open directly in Google Drive ↗
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Permission Guidance Modal -->
-  <div id="permission-modal" class="guide-modal">
-    <div class="guide-card">
-      <div class="guide-title"><span>📷</span><span>Camera Access Needed</span></div>
-      <div class="guide-body">
-        <p>To scan photos in Augmented Reality, allow camera access in your browser.</p>
-        <ol>
-          <li><strong>iPhone (Safari):</strong> Tap <code>aA</code> in address bar → Website Settings → Camera: Allow</li>
-          <li><strong>Android (Chrome):</strong> Tap the Lock icon in address bar → Permissions → Camera: Allow</li>
-        </ol>
-      </div>
-      <button id="btn-modal-close-guide" class="btn btn-primary">Got it</button>
-    </div>
-  </div>
-
-  <!-- Main ES Module Script -->
-  <script type="module" src="app.js?v=20261103_5"></script>
-
+  <script type="module" src="creator.js?v=2"></script>
 </body>
 </html>
