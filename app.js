@@ -1,103 +1,117 @@
 // ========================================================
-//  Living Memory AR — app.js (ES Module)
-//  Option 1: Create AR Photo (Mandatory Photo + Video -> Embed)
-//  Option 2: View / Scan (Upload Magic Photo -> Play Video, or Scan AR)
+//  Living Memory AR — app.js (ES Module) — v3
+//  Option 1: Create AR Photo (Photo + Video or Google Drive Link)
+//  Option 2: View / Scan (Play on tab or Point Camera in 3D AR)
 // ========================================================
 import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+import { getMediaInfo, resolveCloudVideoUrl, buildQrScannerUrl } from "./cloud-storage.js";
 
 // ---- Magic File Format Constants ----
-const MAGIC_SIGNATURE = "AR_MAGIC_V1"; // 11 chars + 5 spaces = 16 bytes
-const FOOTER_SIZE = 56; // 32 bytes MIME + 8 bytes Length (BigInt) + 16 bytes Signature
+const MAGIC_SIGNATURE_V1  = "AR_MAGIC_V1"; // Binary-embedded MP4
+const MAGIC_SIGNATURE_URL = "AR_URL_V1";   // Cloud Video URL link
+const FOOTER_SIZE = 56;
 
 // ---- Global State ----
-let currentPhotoFile = null;
-let currentVideoFile = null;
-let currentPhotoDataUrl = null;
-let currentVideoObjectUrl = null;
+let currentPhotoFile       = null;
+let currentVideoFile       = null;
+let currentVideoCloudUrl   = null; // Google Drive or cloud video link
+let currentPhotoDataUrl    = null;
+let currentVideoObjectUrl  = null;
 
-let generatedMagicBlob = null;
-let generatedMagicBlobUrl = null;
-let compiledMindBuffer = null;
-let compiledMindObjectUrl = null;
+let generatedMagicBlob     = null;
+let generatedMagicBlobUrl  = null;
+let compiledMindBuffer     = null;
+let compiledMindObjectUrl  = null;
 
-let isArRunning = false;
-let isArMuted = true;
-let arScene = null;
-let arAnchor = null;
-let arVideo = null;
-let arVideoMesh = null;
-let textureSyncInterval = null;
+let isArRunning            = false;
+let isArMuted              = true;
+let isCurrentArGoogleDrive = false;
+let arScene                = null;
+let arAnchor               = null;
+let arVideo                = null;
+let arVideoMesh            = null;
+let textureSyncInterval    = null;
 
 // ---- DOM Elements ----
-// Navigation Tabs
-const tabBtnCreate = document.getElementById('tab-btn-create');
-const tabBtnView   = document.getElementById('tab-btn-view');
-const panelCreate  = document.getElementById('panel-create');
-const panelView    = document.getElementById('panel-view');
+const tabBtnCreate         = document.getElementById('tab-btn-create');
+const tabBtnView           = document.getElementById('tab-btn-view');
+const panelCreate          = document.getElementById('panel-create');
+const panelView            = document.getElementById('panel-view');
 
-// Option 1: Create Elements
-const createFormView     = document.getElementById('create-form-view');
-const createResultView   = document.getElementById('create-result-view');
-const createPhotoBox     = document.getElementById('create-photo-box');
-const createPhotoInput   = document.getElementById('create-photo-input');
-const createPhotoThumb   = document.getElementById('create-photo-thumb');
-const createPhotoInfo    = document.getElementById('create-photo-info');
+// Create Elements
+const createFormView       = document.getElementById('create-form-view');
+const createResultView     = document.getElementById('create-result-view');
+const createPhotoBox       = document.getElementById('create-photo-box');
+const createPhotoInput     = document.getElementById('create-photo-input');
+const createPhotoThumb     = document.getElementById('create-photo-thumb');
+const createPhotoInfo      = document.getElementById('create-photo-info');
 
-const createVideoBox     = document.getElementById('create-video-box');
-const createVideoInput   = document.getElementById('create-video-input');
-const createVideoThumb   = document.getElementById('create-video-thumb');
-const createVideoInfo    = document.getElementById('create-video-info');
+const createVideoBox       = document.getElementById('create-video-box');
+const createVideoInput     = document.getElementById('create-video-input');
+const createVideoThumb     = document.getElementById('create-video-thumb');
+const createVideoIframe    = document.getElementById('create-video-iframe');
+const createVideoInfo      = document.getElementById('create-video-info');
+const createVideoUrlInput  = document.getElementById('create-video-url-input');
+const driveAccessHint      = document.getElementById('drive-access-hint');
 
-const btnGenerateAr      = document.getElementById('btn-generate-ar');
-const generateHint       = document.getElementById('generate-hint');
-const chkGoogleLens      = document.getElementById('chk-google-lens');
-const lensBanner         = document.getElementById('lens-banner');
-const createProgressBox  = document.getElementById('create-progress-box');
-const createProgressFill = document.getElementById('create-progress-fill');
-const createProgressText = document.getElementById('create-progress-text');
+const btnGenerateAr        = document.getElementById('btn-generate-ar');
+const generateHint         = document.getElementById('generate-hint');
+const lensBanner           = document.getElementById('lens-banner');
+const createProgressBox    = document.getElementById('create-progress-box');
+const createProgressFill   = document.getElementById('create-progress-fill');
+const createProgressText   = document.getElementById('create-progress-text');
 
 // Result Elements
-const resultPhotoImg     = document.getElementById('result-photo-img');
-const resultPhotoMeta    = document.getElementById('result-photo-meta');
-const btnDownloadResult  = document.getElementById('btn-download-result');
-const btnTestResultVideo = document.getElementById('btn-test-result-video');
-const btnGotoView        = document.getElementById('btn-goto-view');
-const btnCreateReset     = document.getElementById('btn-create-reset');
+const resultPhotoImg       = document.getElementById('result-photo-img');
+const resultPhotoMeta      = document.getElementById('result-photo-meta');
+const btnDownloadResult    = document.getElementById('btn-download-result');
+const btnTestResultVideo   = document.getElementById('btn-test-result-video');
+const btnCopyResultLink    = document.getElementById('btn-copy-result-link');
+const btnCreateReset       = document.getElementById('btn-create-reset');
 
-// Option 2: View / Scan Elements
-const viewUploadSection  = document.getElementById('view-upload-section');
-const viewDropBox        = document.getElementById('view-drop-box');
-const viewFileInput      = document.getElementById('view-file-input');
-const viewPlayerSection  = document.getElementById('view-player-section');
-const viewTabVideo       = document.getElementById('view-tab-video');
-const viewPlayerTitle    = document.getElementById('view-player-title');
-const viewPlayerSubtitle = document.getElementById('view-player-subtitle');
-const btnViewReset       = document.getElementById('btn-view-reset');
-const btnViewLaunchAr    = document.getElementById('btn-view-launch-ar');
-const btnStartCameraAr   = document.getElementById('btn-start-camera-ar');
+// View / Scan Elements
+const viewUploadSection    = document.getElementById('view-upload-section');
+const viewDropBox          = document.getElementById('view-drop-box');
+const viewFileInput        = document.getElementById('view-file-input');
+const viewPlayerSection    = document.getElementById('view-player-section');
+const viewTabVideo         = document.getElementById('view-tab-video');
+const viewTabIframe        = document.getElementById('view-tab-iframe');
+const viewPlayerTitle      = document.getElementById('view-player-title');
+const viewPlayerSubtitle   = document.getElementById('view-player-subtitle');
+const btnViewReset         = document.getElementById('btn-view-reset');
+const btnViewLaunchAr      = document.getElementById('btn-view-launch-ar');
+const btnStartCameraAr     = document.getElementById('btn-start-camera-ar');
 
 // Video Modal (Testing)
-const videoModal         = document.getElementById('video-modal');
-const modalVideoPlayer   = document.getElementById('modal-video-player');
-const btnCloseModal      = document.getElementById('btn-close-modal');
+const videoModal           = document.getElementById('video-modal');
+const modalVideoPlayer     = document.getElementById('modal-video-player');
+const modalVideoIframe     = document.getElementById('modal-video-iframe');
+const btnCloseModal        = document.getElementById('btn-close-modal');
+const modalVideoTitle      = document.getElementById('modal-video-title');
+const modalVideoSubtitle   = document.getElementById('modal-video-subtitle');
+const modalGdriveLinks     = document.getElementById('modal-gdrive-links');
+const modalOpenDriveLink   = document.getElementById('modal-open-drive-link');
 
 // AR View Elements
-const appContainer       = document.getElementById('app-container');
-const arContainer        = document.getElementById('ar-container');
-const btnExitAr          = document.getElementById('btn-exit-ar');
-const btnToggleSound     = document.getElementById('btn-toggle-sound');
-const soundIcon          = document.getElementById('sound-icon');
-const tapUnmutePill      = document.getElementById('tap-unmute-pill');
-const promptPill         = document.getElementById('prompt-pill');
-const promptIcon         = document.getElementById('prompt-icon');
-const promptText         = document.getElementById('prompt-text');
-const scanLaser          = document.getElementById('scan-laser');
-const permissionModal    = document.getElementById('permission-modal');
-const btnModalCloseGuide = document.getElementById('btn-modal-close-guide');
-const inappBanner        = document.getElementById('inapp-banner');
+const appContainer         = document.getElementById('app-container');
+const arContainer          = document.getElementById('ar-container');
+const arGdriveCinema       = document.getElementById('ar-gdrive-cinema');
+const arGdriveIframe       = document.getElementById('ar-gdrive-iframe');
+const btnCloseGdriveCinema = document.getElementById('btn-close-gdrive-cinema');
+const btnExitAr            = document.getElementById('btn-exit-ar');
+const btnToggleSound       = document.getElementById('btn-toggle-sound');
+const soundIcon            = document.getElementById('sound-icon');
+const tapUnmutePill        = document.getElementById('tap-unmute-pill');
+const promptPill           = document.getElementById('prompt-pill');
+const promptIcon           = document.getElementById('prompt-icon');
+const promptText           = document.getElementById('prompt-text');
+const scanLaser            = document.getElementById('scan-laser');
+const permissionModal      = document.getElementById('permission-modal');
+const btnModalCloseGuide   = document.getElementById('btn-modal-close-guide');
+const inappBanner          = document.getElementById('inapp-banner');
 
 // ========================================================
-//  1. INITIALIZATION & IN-APP BROWSER CHECK
+//  1. INITIALIZATION & GOOGLE LENS / URL PARAMS CHECK
 // ========================================================
 (function initApp() {
   const ua = navigator.userAgent || '';
@@ -105,68 +119,111 @@ const inappBanner        = document.getElementById('inapp-banner');
     inappBanner && inappBanner.classList.add('active');
   }
 
-  // Detect Google Lens or Camera QR Scan URL: ?lens=1 or ?autoplay=1
   const params = new URLSearchParams(window.location.search);
-  if (params.has('lens') || params.get('autoplay') === '1') {
+  const rawVideoParam = params.get('v') || params.get('video');
+  if (params.has('lens') || params.get('autoplay') === '1' || rawVideoParam) {
     if (lensBanner) lensBanner.style.display = 'block';
-    // Switch directly to View tab and auto-play video
     switchTab('view');
-    const videoSrc = 'video.mp4';
-    loadVideoIntoViewPlayer(videoSrc, "Google Lens Scan", "Auto-playing living memory");
+    const streamUrl = rawVideoParam ? resolveCloudVideoUrl(rawVideoParam) : 'video.mp4';
+    loadVideoIntoViewPlayer(streamUrl, "Scanned Memory", "Auto-playing living photo video");
   }
 })();
 
 // ========================================================
-//  2. TAB SWITCHING SYSTEM (Option 1 vs Option 2)
+//  2. TAB SWITCHING SYSTEM
 // ========================================================
 function switchTab(target) {
   if (target === 'create') {
-    tabBtnCreate.classList.add('active');
-    tabBtnCreate.setAttribute('aria-selected', 'true');
-    tabBtnView.classList.remove('active');
-    tabBtnView.setAttribute('aria-selected', 'false');
-
-    panelCreate.classList.add('active');
-    panelView.classList.remove('active');
+    tabBtnCreate && tabBtnCreate.classList.add('active');
+    tabBtnView && tabBtnView.classList.remove('active');
+    panelCreate && panelCreate.classList.add('active');
+    panelView && panelView.classList.remove('active');
   } else {
-    tabBtnView.classList.add('active');
-    tabBtnView.setAttribute('aria-selected', 'true');
-    tabBtnCreate.classList.remove('active');
-    tabBtnCreate.setAttribute('aria-selected', 'false');
-
-    panelView.classList.add('active');
-    panelCreate.classList.remove('active');
+    tabBtnView && tabBtnView.classList.add('active');
+    tabBtnCreate && tabBtnCreate.classList.remove('active');
+    panelView && panelView.classList.add('active');
+    panelCreate && panelCreate.classList.remove('active');
   }
 }
 
 tabBtnCreate && tabBtnCreate.addEventListener('click', () => switchTab('create'));
 tabBtnView && tabBtnView.addEventListener('click', () => switchTab('view'));
-btnGotoView && btnGotoView.addEventListener('click', () => {
-  switchTab('view');
-  // If we already have the active video from creation, show it in View player
-  if (currentVideoObjectUrl) {
-    loadVideoIntoViewPlayer(currentVideoObjectUrl, "Magic Photo Ready", "Playing embedded video");
-  }
-});
 
 // ========================================================
-//  3. OPTION 1: MANDATORY PHOTO & VIDEO UPLOAD
+//  3. CREATE TAB: PHOTO & VIDEO SELECTION
 // ========================================================
-// Photo Box triggers
-createPhotoBox.addEventListener('click', () => createPhotoInput.click());
-createPhotoInput.addEventListener('change', (e) => {
+// Photo Box
+createPhotoBox && createPhotoBox.addEventListener('click', () => createPhotoInput && createPhotoInput.click());
+createPhotoInput && createPhotoInput.addEventListener('change', (e) => {
   if (e.target.files && e.target.files[0]) handleCreatePhoto(e.target.files[0]);
 });
 
-// Video Box triggers
-createVideoBox.addEventListener('click', () => createVideoInput.click());
-createVideoInput.addEventListener('change', (e) => {
-  if (e.target.files && e.target.files[0]) handleCreateVideo(e.target.files[0]);
+// Video Box (Click to upload file)
+createVideoBox && createVideoBox.addEventListener('click', (e) => {
+  if (e.target.id !== 'create-video-url-input') {
+    createVideoInput && createVideoInput.click();
+  }
+});
+createVideoInput && createVideoInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleCreateVideoFile(e.target.files[0]);
 });
 
-// Drag & drop handlers
+// Google Drive / Cloud Video URL Input Handler
+function handleVideoUrlInput(rawVal) {
+  const val = (rawVal || '').trim();
+  if (val) {
+    const media = getMediaInfo(val);
+    currentVideoCloudUrl = val;
+    currentVideoObjectUrl = media ? media.streamUrl : val;
+    currentVideoFile = null;
+
+    if (media && media.isGoogleDrive) {
+      if (createVideoThumb) {
+        createVideoThumb.pause();
+        createVideoThumb.style.display = 'none';
+      }
+      if (createVideoIframe) {
+        createVideoIframe.src = media.embedUrl;
+        createVideoIframe.style.display = 'block';
+      }
+      if (driveAccessHint) driveAccessHint.style.display = 'block';
+      if (createVideoInfo) createVideoInfo.textContent = '☁️ Google Drive Video Linked & Previewing!';
+    } else {
+      if (createVideoIframe) {
+        createVideoIframe.src = '';
+        createVideoIframe.style.display = 'none';
+      }
+      if (createVideoThumb) {
+        createVideoThumb.src = currentVideoObjectUrl;
+        createVideoThumb.style.display = 'block';
+      }
+      if (driveAccessHint) driveAccessHint.style.display = 'none';
+      if (createVideoInfo) createVideoInfo.textContent = '☁️ Cloud Video Linked!';
+    }
+    createVideoBox.classList.add('done');
+    updateGenerateButtonState();
+  } else {
+    currentVideoCloudUrl = null;
+    if (createVideoIframe) {
+      createVideoIframe.src = '';
+      createVideoIframe.style.display = 'none';
+    }
+    if (driveAccessHint) driveAccessHint.style.display = 'none';
+    createVideoBox.classList.remove('done');
+    updateGenerateButtonState();
+  }
+}
+
+if (createVideoUrlInput) {
+  createVideoUrlInput.addEventListener('input', (e) => handleVideoUrlInput(e.target.value));
+  createVideoUrlInput.addEventListener('change', (e) => handleVideoUrlInput(e.target.value));
+  createVideoUrlInput.addEventListener('paste', () => {
+    setTimeout(() => handleVideoUrlInput(createVideoUrlInput.value), 50);
+  });
+}
+
 setupDragDrop(createPhotoBox, handleCreatePhoto);
-setupDragDrop(createVideoBox, handleCreateVideo);
+setupDragDrop(createVideoBox, handleCreateVideoFile);
 
 async function handleCreatePhoto(file) {
   if (!file.type.startsWith('image/')) {
@@ -181,40 +238,56 @@ async function handleCreatePhoto(file) {
   updateGenerateButtonState();
 }
 
-function handleCreateVideo(file) {
+function handleCreateVideoFile(file) {
   if (!file.type.startsWith('video/')) {
     alert('Please select a valid video file (MP4, MOV, WebM).');
     return;
   }
   currentVideoFile = file;
-  if (currentVideoObjectUrl) URL.revokeObjectURL(currentVideoObjectUrl);
+  currentVideoCloudUrl = null;
+  if (createVideoUrlInput) createVideoUrlInput.value = '';
+  if (createVideoIframe) {
+    createVideoIframe.src = '';
+    createVideoIframe.style.display = 'none';
+  }
+  if (driveAccessHint) driveAccessHint.style.display = 'none';
+
+  if (currentVideoObjectUrl && currentVideoObjectUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(currentVideoObjectUrl);
+  }
   currentVideoObjectUrl = URL.createObjectURL(file);
   createVideoThumb.src = currentVideoObjectUrl;
+  createVideoThumb.style.display = 'block';
   createVideoInfo.textContent = `${file.name} (${formatBytes(file.size)})`;
   createVideoBox.classList.add('done');
   updateGenerateButtonState();
 }
 
 function updateGenerateButtonState() {
-  const isReady = !!(currentPhotoFile && currentVideoFile);
-  btnGenerateAr.disabled = !isReady;
-  if (isReady) {
-    generateHint.textContent = "✓ Ready! Tap 'Generate AR Photo' to embed your video into this photo.";
-    generateHint.style.color = "var(--gold-vivid)";
-  } else {
-    generateHint.textContent = "* Both Photo and Video are mandatory before generating.";
-    generateHint.style.color = "var(--text-muted)";
+  const hasPhoto = !!currentPhotoFile;
+  const hasVideo = !!(currentVideoFile || currentVideoCloudUrl);
+  const isReady = hasPhoto && hasVideo;
+
+  if (btnGenerateAr) btnGenerateAr.disabled = !isReady;
+  if (generateHint) {
+    if (isReady) {
+      generateHint.textContent = "✓ Ready! Tap 'Generate AR Photo' to build your living memory.";
+      generateHint.style.color = "var(--gold-vivid)";
+    } else {
+      generateHint.textContent = "* Both Photo and Video (or Cloud Link) are required.";
+      generateHint.style.color = "var(--text-muted)";
+    }
   }
 }
 
 // ========================================================
-//  4. GENERATE AR PHOTO (Compile MindAR + Embed Video)
+//  4. GENERATE AR PHOTO (Compile MindAR + Embed/Link Video)
 // ========================================================
-btnGenerateAr.addEventListener('click', generateARPhoto);
+btnGenerateAr && btnGenerateAr.addEventListener('click', generateARPhoto);
 
 async function generateARPhoto() {
-  if (!currentPhotoFile || !currentVideoFile) {
-    alert('Both Photo and Video are mandatory.');
+  if (!currentPhotoFile || (!currentVideoFile && !currentVideoCloudUrl)) {
+    alert('Both Photo and Video are required.');
     return;
   }
 
@@ -224,46 +297,51 @@ async function generateARPhoto() {
   createProgressText.textContent = 'Preparing photo for AR tracking...';
 
   try {
-    // 1. Compile 100% clean photo for MindAR tracking
+    // 1. Compile MindAR tracking features
     createProgressText.textContent = 'Compiling 3D AR tracking features... (Step 1/2)';
     const compiler = new Compiler();
     const imgElement = new Image();
     imgElement.src = currentPhotoDataUrl;
-    await new Promise((resolve, reject) => {
-      imgElement.onload = resolve;
-      imgElement.onerror = reject;
-    });
+    await new Promise((res, rej) => { imgElement.onload = res; imgElement.onerror = rej; });
 
     await compiler.compileImageTargets([imgElement], (pct) => {
-      const scaledPct = Math.round(15 + (pct * 0.65)); // 15% to 80%
-      createProgressFill.style.width = `${scaledPct}%`;
-      createProgressText.textContent = `Compiling AR tracking features: ${Math.round(pct)}%`;
+      const scaled = Math.round(15 + (pct * 0.65));
+      createProgressFill.style.width = `${scaled}%`;
+      createProgressText.textContent = `Compiling AR features: ${Math.round(pct)}%`;
     });
 
     compiledMindBuffer = await compiler.exportData();
-    if (compiledMindObjectUrl) URL.revokeObjectURL(compiledMindObjectUrl);
+    if (compiledMindObjectUrl && compiledMindObjectUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(compiledMindObjectUrl);
+    }
     compiledMindObjectUrl = URL.createObjectURL(new Blob([compiledMindBuffer]));
 
-    // 2. Embed video binary directly into photo file
+    // 2. Embed video binary OR URL into photo
     createProgressFill.style.width = '85%';
-    createProgressText.textContent = 'Embedding video data inside photo... (Step 2/2)';
+    createProgressText.textContent = 'Embedding video data into photo... (Step 2/2)';
 
-    generatedMagicBlob = await packMagicPhoto(currentPhotoFile, currentVideoFile);
-    if (generatedMagicBlobUrl) URL.revokeObjectURL(generatedMagicBlobUrl);
+    if (currentVideoFile) {
+      generatedMagicBlob = await packMagicPhoto(currentPhotoFile, currentVideoFile);
+    } else {
+      generatedMagicBlob = await packMagicPhotoWithUrl(currentPhotoFile, currentVideoCloudUrl);
+    }
+
+    if (generatedMagicBlobUrl && generatedMagicBlobUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(generatedMagicBlobUrl);
+    }
     generatedMagicBlobUrl = URL.createObjectURL(generatedMagicBlob);
 
     createProgressFill.style.width = '100%';
     createProgressText.textContent = '✅ Magic AR Photo Complete!';
 
-    // Brief delay for smooth UI feedback then transition to Result
     setTimeout(() => {
       showResultView(imgElement, currentPhotoDataUrl);
-    }, 600);
+    }, 500);
 
   } catch (err) {
     console.error('AR Generation failed:', err);
     alert('Processing failed: ' + (err.message || err));
-    createProgressText.textContent = '⚠️ Failed. Try a standard JPG/PNG photo with good contrast.';
+    createProgressText.textContent = '⚠️ Generation failed. Try a photo with higher contrast.';
     btnGenerateAr.disabled = false;
   }
 }
@@ -272,18 +350,28 @@ function showResultView(imgElement, displayPhotoUrl) {
   createFormView.style.display = 'none';
   createResultView.style.display = 'block';
 
-  // Display result photo
   resultPhotoImg.src = displayPhotoUrl || currentPhotoDataUrl;
   const isPortrait = imgElement.naturalHeight >= imgElement.naturalWidth;
-  resultPhotoMeta.textContent = `${imgElement.naturalWidth}×${imgElement.naturalHeight} • ${isPortrait ? 'Portrait' : 'Landscape'} • Video Inside: ${formatBytes(currentVideoFile.size)}`;
+  const sizeText = currentVideoFile ? formatBytes(currentVideoFile.size) : 'Cloud Linked';
+  resultPhotoMeta.textContent = `${imgElement.naturalWidth}×${imgElement.naturalHeight} • ${isPortrait ? 'Portrait' : 'Landscape'} • Video: ${sizeText}`;
 
-  // Set download button
   btnDownloadResult.href = generatedMagicBlobUrl;
-  btnDownloadResult.download = `MagicPhoto_${Date.now()}.png`;
+  btnDownloadResult.download = `LivingPhoto_${Date.now()}.png`;
+
+  // Copy shareable link button
+  if (btnCopyResultLink) {
+    btnCopyResultLink.onclick = () => {
+      const link = buildQrScannerUrl(window.location.href, currentVideoCloudUrl || '', '');
+      navigator.clipboard.writeText(link).then(() => {
+        alert('📋 Scannable link copied to clipboard!\n\n' + link);
+      }).catch(() => {
+        prompt('Copy scannable link:', link);
+      });
+    };
+  }
 }
 
-// Reset creation to make another AR photo
-btnCreateReset.addEventListener('click', () => {
+btnCreateReset && btnCreateReset.addEventListener('click', () => {
   createResultView.style.display = 'none';
   createFormView.style.display = 'block';
   createProgressBox.classList.remove('active');
@@ -291,30 +379,65 @@ btnCreateReset.addEventListener('click', () => {
 
   currentPhotoFile = null;
   currentVideoFile = null;
+  currentVideoCloudUrl = null;
   createPhotoBox.classList.remove('done');
   createVideoBox.classList.remove('done');
   createPhotoThumb.src = '';
   createVideoThumb.src = '';
+  if (createVideoIframe) {
+    createVideoIframe.src = '';
+    createVideoIframe.style.display = 'none';
+  }
+  if (driveAccessHint) driveAccessHint.style.display = 'none';
   createPhotoInput.value = '';
   createVideoInput.value = '';
+  if (createVideoUrlInput) createVideoUrlInput.value = '';
   createPhotoInfo.textContent = '';
   createVideoInfo.textContent = '';
   updateGenerateButtonState();
 });
 
-// Test play video from result view
-btnTestResultVideo.addEventListener('click', () => {
-  if (!currentVideoObjectUrl) return;
-  modalVideoPlayer.src = currentVideoObjectUrl;
+btnTestResultVideo && btnTestResultVideo.addEventListener('click', () => {
+  const targetUrl = currentVideoCloudUrl || currentVideoObjectUrl;
+  if (!targetUrl) return;
+
+  const media = getMediaInfo(targetUrl);
   videoModal.classList.add('active');
-  modalVideoPlayer.play().catch(() => {});
+
+  if (media && media.isGoogleDrive) {
+    if (modalVideoPlayer) {
+      modalVideoPlayer.pause();
+      modalVideoPlayer.style.display = 'none';
+    }
+    if (modalVideoIframe) {
+      modalVideoIframe.src = media.embedUrl;
+      modalVideoIframe.style.display = 'block';
+    }
+    if (modalVideoTitle) modalVideoTitle.textContent = '☁️ Google Drive Video Preview';
+    if (modalVideoSubtitle) modalVideoSubtitle.textContent = 'Playing official Google Drive embed. Tap ▶ inside the player.';
+    if (modalGdriveLinks) modalGdriveLinks.style.display = 'block';
+    if (modalOpenDriveLink) modalOpenDriveLink.href = targetUrl;
+  } else {
+    if (modalVideoIframe) {
+      modalVideoIframe.src = '';
+      modalVideoIframe.style.display = 'none';
+    }
+    if (modalVideoPlayer) {
+      modalVideoPlayer.style.display = 'block';
+      modalVideoPlayer.src = (media ? media.streamUrl : targetUrl);
+      modalVideoPlayer.play().catch(() => {});
+    }
+    if (modalVideoTitle) modalVideoTitle.textContent = 'Embedded Video Preview';
+    if (modalVideoSubtitle) modalVideoSubtitle.textContent = 'This is the video that plays when the photo is opened or scanned.';
+    if (modalGdriveLinks) modalGdriveLinks.style.display = 'none';
+  }
 });
 
 // ========================================================
-//  5. OPTION 2: VIEW / SCAN AR PHOTO (Plays Video On Tab!)
+//  5. VIEW / SCAN TAB: PLAY ON TAB OR AR
 // ========================================================
-viewDropBox.addEventListener('click', () => viewFileInput.click());
-viewFileInput.addEventListener('change', (e) => {
+viewDropBox && viewDropBox.addEventListener('click', () => viewFileInput && viewFileInput.click());
+viewFileInput && viewFileInput.addEventListener('change', (e) => {
   if (e.target.files && e.target.files[0]) handleViewPhotoUpload(e.target.files[0]);
 });
 
@@ -327,33 +450,33 @@ async function handleViewPhotoUpload(file) {
   }
 
   try {
-    // Read file and extract embedded video
     const extracted = await unpackMagicPhoto(file);
 
-    if (extracted && extracted.videoBlob) {
-      // SUCCESS: Embedded video found!
-      if (currentVideoObjectUrl) URL.revokeObjectURL(currentVideoObjectUrl);
-      currentVideoObjectUrl = URL.createObjectURL(extracted.videoBlob);
-
-      // Save photo for AR tracking
-      currentPhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
-
-      // Start compiling AR target in background for seamless camera scanning
-      compileTargetInMemory(currentPhotoDataUrl);
-
-      // PLAY VIDEO DIRECTLY ON THIS TAB (User's explicit requirement!)
-      loadVideoIntoViewPlayer(currentVideoObjectUrl, file.name, "✨ Embedded video detected & playing!");
+    if (extracted) {
+      if (extracted.videoBlob) {
+        if (currentVideoObjectUrl && currentVideoObjectUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(currentVideoObjectUrl);
+        }
+        currentVideoObjectUrl = URL.createObjectURL(extracted.videoBlob);
+        currentPhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
+        compileTargetInMemory(currentPhotoDataUrl);
+        loadVideoIntoViewPlayer(currentVideoObjectUrl, file.name, "✨ Embedded video detected & playing!");
+      } else if (extracted.videoUrl) {
+        const streamUrl = resolveCloudVideoUrl(extracted.videoUrl);
+        currentVideoObjectUrl = streamUrl;
+        currentPhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
+        compileTargetInMemory(currentPhotoDataUrl);
+        loadVideoIntoViewPlayer(streamUrl, file.name, "☁️ Cloud video linked & playing!");
+      }
     } else {
-      // Standard image without embedded video
       const photoUrl = await fileToDataUrl(file);
       currentPhotoDataUrl = photoUrl;
       compileTargetInMemory(photoUrl);
 
       if (currentVideoObjectUrl) {
-        // We have an active video from the current session
-        loadVideoIntoViewPlayer(currentVideoObjectUrl, file.name, "Playing paired video on this photo");
+        loadVideoIntoViewPlayer(currentVideoObjectUrl, file.name, "Playing memory video");
       } else {
-        alert("This photo does not contain an embedded video. You can create one in the 'Create AR Photo' tab, or point your camera at it to scan!");
+        alert("This photo doesn't contain an embedded video. You can create one in the Creator tab or point camera to scan!");
       }
     }
   } catch (err) {
@@ -363,44 +486,61 @@ async function handleViewPhotoUpload(file) {
 }
 
 function loadVideoIntoViewPlayer(videoSrc, title, subtitle) {
-  viewUploadSection.style.display = 'none';
-  viewPlayerSection.style.display = 'block';
+  if (viewUploadSection) viewUploadSection.style.display = 'none';
+  if (viewPlayerSection) viewPlayerSection.style.display = 'block';
 
-  viewTabVideo.src = videoSrc;
-  viewPlayerTitle.textContent = title || "Living Memory";
-  viewPlayerSubtitle.textContent = subtitle || "Playing embedded video";
+  const media = getMediaInfo(videoSrc);
+  if (media && media.isGoogleDrive) {
+    if (viewTabVideo) {
+      viewTabVideo.pause();
+      viewTabVideo.style.display = 'none';
+    }
+    if (viewTabIframe) {
+      viewTabIframe.src = media.embedUrl;
+      viewTabIframe.style.display = 'block';
+    }
+  } else {
+    if (viewTabIframe) {
+      viewTabIframe.src = '';
+      viewTabIframe.style.display = 'none';
+    }
+    if (viewTabVideo) {
+      viewTabVideo.style.display = 'block';
+      viewTabVideo.src = (media ? media.streamUrl : videoSrc);
+      viewTabVideo.crossOrigin = 'anonymous';
+      viewTabVideo.muted = false;
+      viewTabVideo.play().catch(() => {
+        viewTabVideo.muted = true;
+        viewTabVideo.play().catch(() => {});
+      });
+    }
+  }
 
-  viewTabVideo.muted = false; // Unmuted playback
-  viewTabVideo.play().catch(() => {
-    // Autoplay policy fallback: mute and prompt user
-    viewTabVideo.muted = true;
-    viewTabVideo.play().catch(() => {});
-  });
+  if (viewPlayerTitle) viewPlayerTitle.textContent = title || "Living Memory";
+  if (viewPlayerSubtitle) viewPlayerSubtitle.textContent = subtitle || "Playing memory video";
 }
 
-btnViewReset.addEventListener('click', () => {
-  viewTabVideo.pause();
-  viewTabVideo.src = '';
-  viewPlayerSection.style.display = 'none';
-  viewUploadSection.style.display = 'block';
-  viewFileInput.value = '';
+btnViewReset && btnViewReset.addEventListener('click', () => {
+  if (viewTabVideo) { viewTabVideo.pause(); viewTabVideo.src = ''; }
+  if (viewTabIframe) { viewTabIframe.src = ''; }
+  if (viewPlayerSection) viewPlayerSection.style.display = 'none';
+  if (viewUploadSection) viewUploadSection.style.display = 'block';
+  if (viewFileInput) viewFileInput.value = '';
 });
 
-// Launch AR from View Tab
-btnViewLaunchAr.addEventListener('click', startLiveAR);
-btnStartCameraAr.addEventListener('click', startLiveAR);
+// Launch AR
+btnViewLaunchAr && btnViewLaunchAr.addEventListener('click', startLiveAR);
+btnStartCameraAr && btnStartCameraAr.addEventListener('click', startLiveAR);
 
 // ========================================================
-//  6. LIVE AR SCANNER (Camera + MindAR + 3D Video)
+//  6. LIVE AR SCANNER (TRANSPARENT CANVAS + FULL CAMERA VIEW)
 // ========================================================
 async function startLiveAR() {
   if (!compiledMindObjectUrl && currentPhotoDataUrl) {
-    // If not yet compiled, compile now
     promptText.textContent = "Preparing AR camera...";
     await compileTargetInMemory(currentPhotoDataUrl);
   }
 
-  // Fallback if still no target: use default targets.mind if present
   const targetUrl = compiledMindObjectUrl || 'targets.mind';
   const videoSrc  = currentVideoObjectUrl || 'video.mp4';
 
@@ -412,15 +552,18 @@ async function startLiveAR() {
     isArRunning = true;
 
     const scene = document.getElementById('ar-scene');
+
     const startTracking = async () => {
-      arScene = scene;
-      arAnchor = document.getElementById('ar-anchor');
-      arVideo = document.getElementById('ar-video-asset');
+      arScene     = scene;
+      arAnchor    = document.getElementById('ar-anchor');
+      arVideo     = document.getElementById('ar-video-asset');
       arVideoMesh = document.getElementById('ar-video-mesh');
 
-      // Audio unlock gesture
-      arVideo.muted = true;
-      arVideo.play().then(() => { arVideo.pause(); arVideo.currentTime = 0; }).catch(() => {});
+      // Pre-warm video
+      if (arVideo) {
+        arVideo.muted = true;
+        arVideo.play().then(() => { arVideo.pause(); arVideo.currentTime = 0; }).catch(() => {});
+      }
 
       const mindarSystem = scene.systems['mindar-image-system'];
       if (mindarSystem) {
@@ -439,7 +582,7 @@ async function startLiveAR() {
   } catch (err) {
     console.error('AR start error:', err);
     exitArMode();
-    permissionModal.classList.add('active');
+    permissionModal && permissionModal.classList.add('active');
   }
 }
 
@@ -447,21 +590,30 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   const old = document.getElementById('ar-scene');
   if (old) old.remove();
 
+  const media = getMediaInfo(videoSrc);
+  isCurrentArGoogleDrive = !!(media && media.isGoogleDrive);
+
+  if (isCurrentArGoogleDrive && arGdriveIframe) {
+    arGdriveIframe.src = media.embedUrl;
+  }
+
   const scene = document.createElement('a-scene');
   scene.id = 'ar-scene';
   scene.setAttribute('mindar-image',
-    `imageTargetSrc: ${targetSrc}; autoStart: false; uiLoading: no; uiScanning: no;`);
+    `imageTargetSrc: ${targetSrc}; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 5;`);
   scene.setAttribute('color-space', 'sRGB');
-  scene.setAttribute('embedded', '');
-  scene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
+  scene.setAttribute('renderer', 'colorManagement: true; physicallyCorrectLights: true; alpha: true;');
   scene.setAttribute('vr-mode-ui', 'enabled: false');
   scene.setAttribute('device-orientation-permission-ui', 'enabled: false');
 
-  // Video Asset
+  // Video Asset (only for direct videos; avoid passing Google Drive HTML preview to <video>)
   const assets = document.createElement('a-assets');
   const vid = document.createElement('video');
   vid.id = 'ar-video-asset';
-  vid.src = videoSrc;
+  if (!isCurrentArGoogleDrive) {
+    vid.src = (media ? media.streamUrl : videoSrc);
+    vid.crossOrigin = 'anonymous';
+  }
   vid.setAttribute('preload', 'auto');
   vid.setAttribute('playsinline', '');
   vid.setAttribute('webkit-playsinline', '');
@@ -476,14 +628,20 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   cam.setAttribute('look-controls', 'enabled: false');
   scene.appendChild(cam);
 
-  // Anchor & Video Mesh
+  // Target Anchor
   const anchor = document.createElement('a-entity');
   anchor.id = 'ar-anchor';
   anchor.setAttribute('mindar-image-target', 'targetIndex: 0');
 
-  const mesh = document.createElement('a-video');
+  // Video Plane in AR (only used for direct streamable videos)
+  const mesh = document.createElement('a-plane');
   mesh.id = 'ar-video-mesh';
-  mesh.setAttribute('src', '#ar-video-asset');
+  if (!isCurrentArGoogleDrive) {
+    mesh.setAttribute('src', '#ar-video-asset');
+    mesh.setAttribute('material', 'shader: flat; transparent: true;');
+  } else {
+    mesh.setAttribute('visible', 'false');
+  }
   mesh.setAttribute('position', '0 0 0');
   mesh.setAttribute('width', '1');
   mesh.setAttribute('height', '1');
@@ -494,26 +652,43 @@ function buildDynamicArScene(targetSrc, videoSrc) {
 }
 
 function registerAnchorEvents() {
-  arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
+  if (!arAnchor) return;
+  if (arVideo && !isCurrentArGoogleDrive) {
+    arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
+  }
 
   arAnchor.addEventListener('targetFound', () => {
-    arVideo.muted = isArMuted;
-    arVideo.play().catch(() => {});
-    promptPill.classList.add('target-detected');
-    promptIcon.textContent = '✨';
-    promptText.textContent = 'Memory Playing!';
-    scanLaser.style.display = 'none';
-    if (isArMuted) tapUnmutePill.classList.add('active');
+    if (isCurrentArGoogleDrive) {
+      if (arGdriveCinema) arGdriveCinema.classList.add('active');
+    } else if (arVideo) {
+      arVideo.muted = isArMuted;
+      arVideo.play().catch(() => {});
+    }
+    promptPill && promptPill.classList.add('target-detected');
+    if (promptIcon) promptIcon.textContent = '✨';
+    if (promptText) promptText.textContent = 'Memory Playing!';
+    if (scanLaser) scanLaser.style.display = 'none';
+    if (!isCurrentArGoogleDrive && isArMuted && tapUnmutePill) tapUnmutePill.classList.add('active');
   });
 
   arAnchor.addEventListener('targetLost', () => {
-    arVideo.pause();
-    promptPill.classList.remove('target-detected');
-    promptIcon.textContent = '🔍';
-    promptText.textContent = 'Point camera at the photo';
-    scanLaser.style.display = 'block';
-    tapUnmutePill.classList.remove('active');
+    if (isCurrentArGoogleDrive) {
+      if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+    } else if (arVideo) {
+      arVideo.pause();
+    }
+    promptPill && promptPill.classList.remove('target-detected');
+    if (promptIcon) promptIcon.textContent = '🔍';
+    if (promptText) promptText.textContent = 'Point camera at the photo';
+    if (scanLaser) scanLaser.style.display = 'block';
+    if (tapUnmutePill) tapUnmutePill.classList.remove('active');
   });
+
+  if (btnCloseGdriveCinema) {
+    btnCloseGdriveCinema.onclick = () => {
+      if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+    };
+  }
 }
 
 function adjustVideoMesh() {
@@ -541,7 +716,9 @@ function exitArMode() {
   if (!isArRunning) return;
   if (textureSyncInterval) { clearInterval(textureSyncInterval); textureSyncInterval = null; }
   if (arVideo) arVideo.pause();
-  tapUnmutePill.classList.remove('active');
+  if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+  if (arGdriveIframe) arGdriveIframe.src = '';
+  if (tapUnmutePill) tapUnmutePill.classList.remove('active');
 
   if (arScene) {
     const sys = arScene.systems['mindar-image-system'];
@@ -553,70 +730,77 @@ function exitArMode() {
   isArRunning = false;
 }
 
-btnExitAr.addEventListener('click', exitArMode);
+btnExitAr && btnExitAr.addEventListener('click', exitArMode);
 
-// Audio Controls
 function setArAudio(unmute) {
   isArMuted = !unmute;
   if (arVideo) arVideo.muted = isArMuted;
-  soundIcon.textContent = isArMuted ? '🔇' : '🔊';
-  if (!isArMuted) tapUnmutePill.classList.remove('active');
+  if (soundIcon) soundIcon.textContent = isArMuted ? '🔇' : '🔊';
+  if (!isArMuted && tapUnmutePill) tapUnmutePill.classList.remove('active');
 }
 
-btnToggleSound.addEventListener('click', () => setArAudio(isArMuted));
-tapUnmutePill.addEventListener('click', () => setArAudio(true));
+btnToggleSound && btnToggleSound.addEventListener('click', () => setArAudio(isArMuted));
+tapUnmutePill && tapUnmutePill.addEventListener('click', () => setArAudio(true));
 
-// Helper: compile AR target in background
 async function compileTargetInMemory(dataUrl) {
   try {
     const compiler = new Compiler();
     const img = new Image();
     img.src = dataUrl;
+    img.crossOrigin = 'anonymous';
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
     await compiler.compileImageTargets([img]);
     compiledMindBuffer = await compiler.exportData();
-    if (compiledMindObjectUrl) URL.revokeObjectURL(compiledMindObjectUrl);
+    if (compiledMindObjectUrl && compiledMindObjectUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(compiledMindObjectUrl);
+    }
     compiledMindObjectUrl = URL.createObjectURL(new Blob([compiledMindBuffer]));
   } catch (e) {
-    console.warn("Background target compile note:", e);
+    console.warn("Background compile note:", e);
   }
 }
 
 // ========================================================
-//  7. BINARY EMBEDDING / EXTRACTION ENGINE (Polyglot)
+//  7. BINARY EMBEDDING / EXTRACTION ENGINE
 // ========================================================
-/**
- * Embeds video data at the end of the photo file.
- * Structure: [ Photo Bytes ] + [ Video Bytes ] + [ 32B MIME ] + [ 8B Video Len ] + [ 16B Signature ]
- */
 async function packMagicPhoto(photoFile, videoFile) {
   const photoBuffer = await photoFile.arrayBuffer();
   const videoBuffer = await videoFile.arrayBuffer();
 
   const videoLen = videoBuffer.byteLength;
   const mimeStr  = (videoFile.type || 'video/mp4').padEnd(32, ' ');
-  const sigStr   = MAGIC_SIGNATURE.padEnd(16, ' ');
+  const sigStr   = MAGIC_SIGNATURE_V1.padEnd(16, ' ');
 
   const footer = new Uint8Array(FOOTER_SIZE);
   const textEncoder = new TextEncoder();
 
-  // 1. Write MIME (32 bytes)
   footer.set(textEncoder.encode(mimeStr).subarray(0, 32), 0);
-
-  // 2. Write 8-byte BigInt video length
   const view = new DataView(footer.buffer);
-  view.setBigUint64(32, BigInt(videoLen), false); // Big-Endian
-
-  // 3. Write Signature (16 bytes)
+  view.setBigUint64(32, BigInt(videoLen), false);
   footer.set(textEncoder.encode(sigStr).subarray(0, 16), 40);
 
-  // Combine into single PNG Blob
   return new Blob([photoBuffer, videoBuffer, footer], { type: 'image/png' });
 }
 
-/**
- * Reads any uploaded photo file and checks for embedded video data.
- */
+async function packMagicPhotoWithUrl(photoFile, urlString) {
+  const photoBuffer = await photoFile.arrayBuffer();
+  const urlBytes    = new TextEncoder().encode(urlString);
+
+  const urlLen  = urlBytes.byteLength;
+  const mimeStr = 'text/uri-list'.padEnd(32, ' ');
+  const sigStr  = MAGIC_SIGNATURE_URL.padEnd(16, ' ');
+
+  const footer = new Uint8Array(FOOTER_SIZE);
+  const textEncoder = new TextEncoder();
+
+  footer.set(textEncoder.encode(mimeStr).subarray(0, 32), 0);
+  const view = new DataView(footer.buffer);
+  view.setBigUint64(32, BigInt(urlLen), false);
+  footer.set(textEncoder.encode(sigStr).subarray(0, 16), 40);
+
+  return new Blob([photoBuffer, urlBytes, footer], { type: 'image/png' });
+}
+
 async function unpackMagicPhoto(file) {
   const buffer = await file.arrayBuffer();
   if (buffer.byteLength < FOOTER_SIZE + 10) return null;
@@ -625,21 +809,30 @@ async function unpackMagicPhoto(file) {
   const footerBuffer = buffer.slice(totalLen - FOOTER_SIZE, totalLen);
   const textDecoder = new TextDecoder('ascii');
 
-  // Check signature at bytes 40..56 of footer
-  const sig = textDecoder.decode(footerBuffer.slice(40, 56)).trim();
-  if (sig === MAGIC_SIGNATURE) {
-    const mime = textDecoder.decode(footerBuffer.slice(0, 32)).trim();
-    const view = new DataView(footerBuffer);
-    const videoLen = Number(view.getBigUint64(32, false));
+  const sig  = textDecoder.decode(footerBuffer.slice(40, 56)).trim();
+  const mime = textDecoder.decode(footerBuffer.slice(0, 32)).trim();
+  const view = new DataView(footerBuffer);
+  const dataLen = Number(view.getBigUint64(32, false));
 
-    if (videoLen > 0 && totalLen >= FOOTER_SIZE + videoLen) {
-      const videoStart = totalLen - FOOTER_SIZE - videoLen;
-      const videoBytes = buffer.slice(videoStart, totalLen - FOOTER_SIZE);
-      const photoBytes = buffer.slice(0, videoStart);
+  if (dataLen > 0 && totalLen >= FOOTER_SIZE + dataLen) {
+    const dataStart = totalLen - FOOTER_SIZE - dataLen;
+    const dataBytes = buffer.slice(dataStart, totalLen - FOOTER_SIZE);
+    const photoBytes = buffer.slice(0, dataStart);
 
+    if (sig === MAGIC_SIGNATURE_V1) {
       return {
         photoBlob: new Blob([photoBytes], { type: 'image/png' }),
-        videoBlob: new Blob([videoBytes], { type: mime || 'video/mp4' })
+        videoBlob: new Blob([dataBytes], { type: mime || 'video/mp4' }),
+        videoUrl: null
+      };
+    }
+
+    if (sig === MAGIC_SIGNATURE_URL) {
+      const videoUrl = new TextDecoder('utf-8').decode(dataBytes).trim();
+      return {
+        photoBlob: new Blob([photoBytes], { type: 'image/png' }),
+        videoBlob: null,
+        videoUrl: videoUrl
       };
     }
   }
@@ -648,35 +841,33 @@ async function unpackMagicPhoto(file) {
 }
 
 // ========================================================
-//  8. MODALS & UTILITY FUNCTIONS
+//  8. MODALS & UTILITIES
 // ========================================================
-btnCloseModal.addEventListener('click', () => {
+btnCloseModal && btnCloseModal.addEventListener('click', () => {
   videoModal.classList.remove('active');
-  modalVideoPlayer.pause();
+  if (modalVideoPlayer) modalVideoPlayer.pause();
+  if (modalVideoIframe) modalVideoIframe.src = '';
 });
-videoModal.addEventListener('click', (e) => {
+videoModal && videoModal.addEventListener('click', (e) => {
   if (e.target === videoModal) {
     videoModal.classList.remove('active');
-    modalVideoPlayer.pause();
+    if (modalVideoPlayer) modalVideoPlayer.pause();
+    if (modalVideoIframe) modalVideoIframe.src = '';
   }
 });
 
-btnModalCloseGuide.addEventListener('click', () => {
+btnModalCloseGuide && btnModalCloseGuide.addEventListener('click', () => {
   permissionModal.classList.remove('active');
 });
 
 function setupDragDrop(elem, fileHandler) {
-  elem.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    elem.classList.add('dragover');
-  });
+  if (!elem) return;
+  elem.addEventListener('dragover', (e) => { e.preventDefault(); elem.classList.add('dragover'); });
   elem.addEventListener('dragleave', () => elem.classList.remove('dragover'));
   elem.addEventListener('drop', (e) => {
     e.preventDefault();
     elem.classList.remove('dragover');
-    if (e.dataTransfer && e.dataTransfer.files[0]) {
-      fileHandler(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer && e.dataTransfer.files[0]) fileHandler(e.dataTransfer.files[0]);
   });
 }
 

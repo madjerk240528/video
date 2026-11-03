@@ -1,8 +1,9 @@
 // Service Worker for AR Photo Scanner PWA
-const CACHE_NAME = 'ar-scanner-v1';
+const CACHE_NAME = 'ar-scanner-v2';
 const ASSETS_TO_CACHE = [
   './scan.html',
   './scan.js',
+  './cloud-storage.js',
   './style.css',
   './manifest.json',
   './icon-192.png',

@@ -406,13 +406,28 @@ h1 {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: #000;
+  z-index: 1000;
+  background: transparent !important;
   overflow: hidden;
 }
 
 #ar-container.active {
   display: block;
+}
+
+/* Ensure MindAR camera feed created at z-index -2 is fully visible */
+#ar-container video {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  z-index: -2 !important;
+}
+
+#ar-container .a-canvas {
+  background: transparent !important;
 }
 
 /* Floating HUD Controls on top of AR */
@@ -621,9 +636,78 @@ h1 {
   background: #000;
 }
 
-.modal-video-container video {
+.modal-video-container video,
+.modal-video-container iframe {
   width: 100%;
   height: 100%;
+  display: block;
+  border: none;
+}
+
+/* Floating Cinema Overlay for Google Drive Videos in AR */
+.ar-gdrive-cinema {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 440px);
+  background: rgba(14, 17, 26, 0.95);
+  border: 2px solid var(--gold-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 35px rgba(212, 175, 55, 0.45);
+  z-index: 20;
+  pointer-events: auto;
+  overflow: hidden;
+  animation: cinemaPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.ar-gdrive-cinema.active {
+  display: block;
+}
+
+@keyframes cinemaPopIn {
+  from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.ar-cinema-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(7, 8, 13, 0.9);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.ar-cinema-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold-vivid);
+  letter-spacing: 0.04em;
+}
+
+.ar-cinema-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.ar-cinema-body {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.ar-cinema-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
   display: block;
 }
 

@@ -34,13 +34,29 @@ When someone scans the photo with their phone camera, **Google Photos**, or **Go
 
 ### Step 2: Upload Files
 Upload all files from this folder to your new GitHub repository:
-- `index.html`
-- `studio.html`
+- `index.html` (Creator & Viewer App)
+- `scan.html` (Dedicated Fast Mobile Scanner)
+- `scan.js`
+- `studio.html` (Print Studio with QR Code Generator)
+- `cloud-storage.js` (Google Drive & Cloud Video Resolver)
 - `style.css`
 - `app.js`
-- `photo.jpg` *(your photograph)*
-- `video.mp4` *(your video clip)*
-- `targets.mind` *(the AR tracking file compiled for your photo)*
+- `sw.js` & `manifest.json` (PWA Offline / Installable App)
+- `photo.jpg` *(sample photograph)*
+- `video.mp4` *(sample video clip)*
+- `targets.mind` *(sample AR tracking file)*
+
+---
+
+## ☁️ Using Google Drive for Your Videos (Permanent Free Hosting!)
+
+You do **NOT** have to commit large video files to GitHub or worry about your videos being erased:
+1. Upload your video clip to **Google Drive**.
+2. Right-click the video → **Share** → set to **"Anyone with the link can view"**.
+3. Copy the link (e.g., `https://drive.google.com/file/d/1AbC.../view?usp=sharing`).
+4. In **`studio.html`** or **`index.html`**, paste that link into the **Google Drive / Cloud Video URL** box!
+5. Our system automatically converts it into a direct high-speed video stream and encodes it directly into your printable QR code!
+6. When someone scans your printed photo with their phone camera, Google Photos, or Google Lens, **your Google Drive video streams and plays locked in 3D AR right on top of the physical photo**!
 
 ### Step 3: Enable GitHub Pages
 1. In your repository on GitHub, go to **Settings** (top tab).

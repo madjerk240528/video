@@ -10,70 +10,139 @@
   <meta name="theme-color" content="#07080d">
   <title>AR Scanner — Living Photo Memory</title>
 
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👁️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📷</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📷</text></svg>">
   <link rel="manifest" href="manifest.json">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
-  <!-- A-Frame & MindAR for WebAR Tracking -->
+  <!-- A-Frame & MindAR -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
   <link rel="stylesheet" href="style.css">
 
   <style>
-    /* Dedicated Scanner App Styles */
-    .scanner-hero {
-      text-align: center;
-      padding: 30px 20px;
-      border: 1px solid var(--surface-border-hover);
-      border-radius: var(--radius-lg);
-      background: var(--surface-card);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(212, 175, 55, 0.15);
-      margin-bottom: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .scanner-pulse-icon {
-      font-size: 3.5rem;
-      margin-bottom: 14px;
-      display: inline-block;
-      animation: pulseGlow 2.5s infinite;
-    }
-
-    @keyframes pulseGlow {
-      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.4)); }
-      50% { transform: scale(1.08); filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.8)); }
-    }
-
-    .install-pill {
-      background: rgba(212, 175, 55, 0.1);
-      border: 1px solid rgba(212, 175, 55, 0.35);
-      border-radius: var(--radius-md);
-      padding: 12px 14px;
-      margin-top: 24px;
-      font-size: 0.8rem;
-      color: var(--gold-light);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      line-height: 1.4;
-    }
-
     .app-switch-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 10px 16px;
-      background: rgba(14, 17, 26, 0.8);
+      background: rgba(14,17,26,0.85);
       border: 1px solid var(--surface-border);
       border-radius: 999px;
       margin-bottom: 20px;
       font-size: 0.82rem;
+    }
+
+    .scan-drop-zone {
+      border: 2px dashed rgba(212,175,55,0.4);
+      border-radius: var(--radius-lg);
+      padding: 32px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      background: rgba(212,175,55,0.03);
+      margin-bottom: 16px;
+    }
+    .scan-drop-zone:hover, .scan-drop-zone.dragover {
+      border-color: var(--gold-primary);
+      background: rgba(212,175,55,0.09);
+      box-shadow: 0 0 22px rgba(212,175,55,0.2);
+    }
+
+    .steps-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .step-card {
+      flex: 1;
+      text-align: center;
+      padding: 12px 8px;
+      border-radius: var(--radius-md);
+      background: rgba(14,17,26,0.7);
+      border: 1px solid var(--surface-border);
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+    .step-card.active-step {
+      border-color: var(--gold-primary);
+      background: rgba(212,175,55,0.08);
+      color: var(--gold-vivid);
+      box-shadow: 0 0 14px rgba(212,175,55,0.15);
+    }
+    .step-card .s-icon { font-size: 1.5rem; margin-bottom: 4px; display: block; }
+    .step-card .s-label { font-weight: 700; font-size: 0.74rem; }
+
+    .compile-status-box {
+      display: none;
+      background: rgba(14,17,26,0.85);
+      border: 1px solid var(--gold-glow);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .compile-label {
+      font-size: 0.82rem;
+      color: var(--gold-vivid);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .compile-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .compile-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--gold-btn-gradient);
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+
+    .or-divider {
+      display: flex;
+      align-items: center;
+      margin: 16px 0;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .or-divider::before, .or-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(212,175,55,0.18);
+    }
+    .or-divider span { padding: 0 12px; }
+
+    .link-paste-box {
+      background: rgba(14,17,26,0.6);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .link-paste-box input {
+      width: 100%;
+      background: #040508;
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+    .link-paste-box input:focus {
+      outline: none;
+      border-color: var(--gold-primary);
     }
   </style>
 </head>
@@ -88,12 +157,17 @@
 
     <!-- Top Switcher Bar -->
     <div class="app-switch-bar">
-      <div style="display:flex; align-items:center; gap:6px; color:var(--gold-vivid); font-weight:700;">
-        <span>👁️</span><span>Dedicated Scanner App</span>
+      <div style="display:flex;align-items:center;gap:6px;color:var(--gold-vivid);font-weight:700;">
+        <span>📷</span><span>AR Scanner</span>
       </div>
-      <a href="index.html" class="studio-btn-link" style="text-decoration:none; padding:4px 12px; font-size:0.78rem;">
-        <span>🪄</span><span>Creator App ➔</span>
-      </a>
+      <div style="display:flex;gap:10px;">
+        <a href="studio.html" class="studio-btn-link" style="text-decoration:none;padding:4px 10px;font-size:0.75rem;">
+          <span>🖨️</span><span>Studio</span>
+        </a>
+        <a href="index.html" class="studio-btn-link" style="text-decoration:none;padding:4px 10px;font-size:0.75rem;">
+          <span>🪄</span><span>Creator</span>
+        </a>
+      </div>
     </div>
 
     <!-- In-App Browser Warning -->
@@ -103,125 +177,177 @@
     </div>
 
     <!-- Header -->
-    <header style="margin-bottom: 20px;">
+    <header style="margin-bottom:18px;">
       <div class="badge">
         <span class="badge-dot"></span>
         <span>Living Memory Scanner</span>
       </div>
-      <h1>Point Camera &amp; Scan</h1>
-      <p class="subtitle">Open the camera scanner below, point at your photo, and watch the video come alive in 3D.</p>
+      <h1>Scan Living Photo</h1>
+      <p class="subtitle">Open camera and point at your printed photo to bring it to life in 3D AR!</p>
     </header>
 
-    <!-- Hero Card 1: Camera Scanner -->
-    <div class="scanner-hero">
-      <div class="scanner-pulse-icon">📷</div>
-      <h2 style="color:#fff; font-size:1.35rem; margin-bottom:8px;">Live AR Camera Scanner</h2>
-      <p style="color:var(--text-muted); font-size:0.86rem; max-width:340px; margin:0 auto 20px; line-height:1.45;">
-        Point your phone camera directly at the printed photo (or on a computer/phone screen). The video will lock on and play live!
-      </p>
+    <!-- 3-Step Progress Indicators -->
+    <div class="steps-row">
+      <div class="step-card active-step">
+        <span class="s-icon">🔗</span>
+        <div class="s-label">1. Scan QR</div>
+        <div style="font-size:0.68rem;margin-top:2px;">or Load Link</div>
+      </div>
+      <div class="step-card active-step">
+        <span class="s-icon">📷</span>
+        <div class="s-label">2. Camera AR</div>
+        <div style="font-size:0.68rem;margin-top:2px;">Locks on Photo</div>
+      </div>
+      <div class="step-card active-step">
+        <span class="s-icon">🎬</span>
+        <div class="s-label">3. 3D Video</div>
+        <div style="font-size:0.68rem;margin-top:2px;">Plays on Photo</div>
+      </div>
+    </div>
 
-      <button id="btn-open-scanner" class="btn btn-primary" style="font-size:1.08rem; padding:18px;">
-        <span class="btn-icon">✨</span>
-        <span>Open Camera Scanner</span>
+    <!-- === MAIN CARD 1: UPLOAD / START SCAN === -->
+    <div id="upload-card">
+
+      <!-- Direct Camera Button (Top Hero) -->
+      <button id="btn-open-scanner" class="btn btn-primary" style="font-size:1.05rem;padding:18px;margin-bottom:16px;">
+        <span class="btn-icon">📷</span>
+        <span>Point Camera & Scan in 3D AR</span>
       </button>
-    </div>
 
-    <!-- Divider -->
-    <div class="gold-divider">
-      <span>OR PLAY FROM PHOTO FILE</span>
-    </div>
-
-    <!-- Card 2: Upload Photo to Reveal & Play Video -->
-    <div class="photo-card-container" id="upload-card">
-      <div class="scan-view-box" id="scan-drop-box" style="margin-bottom:0;">
-        <div style="font-size:2.4rem; margin-bottom:8px;">📤</div>
-        <h3 style="color:#fff; font-size:1.1rem; margin-bottom:4px;">Upload Photo to Play Video</h3>
-        <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:12px;">
-          Received an AR photo? Select it here to instantly unlock &amp; play its video!
+      <!-- Paste Cloud Video Link (Google Drive / Dropbox) -->
+      <div class="link-paste-box">
+        <div style="font-weight:700;color:var(--gold-light);font-size:0.86rem;margin-bottom:6px;">
+          ☁️ Have a Google Drive or Cloud Video Link?
+        </div>
+        <p style="font-size:0.76rem;color:var(--text-muted);margin-bottom:10px;">
+          Paste your Google Drive or video URL to load and play it immediately:
         </p>
-        <div class="badge" style="margin-bottom:0; cursor:pointer;">
-          <span>Choose Photo File</span>
-        </div>
-        <input type="file" id="scan-file-input" accept="image/*" style="display:none">
-      </div>
-    </div>
-
-    <!-- In-Tab Video Player (revealed when a photo file is uploaded) -->
-    <div id="scanner-player-card" style="display:none;" class="photo-card-container">
-      <div class="tab-video-player-wrap">
-        <div class="player-overlay-tag">
-          <span>✨</span><span>Memory Playing</span>
-        </div>
-        <video id="scanner-tab-video" controls autoplay playsinline webkit-playsinline></video>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <div>
-          <div id="scanner-video-title" style="font-weight:700; color:#fff; font-size:1rem;">Living Memory</div>
-          <div id="scanner-video-sub" style="font-size:0.78rem; color:var(--text-gold);">Playing from photo</div>
-        </div>
-        <button id="btn-scan-another" class="studio-btn-link" style="cursor:pointer; background:none;">
-          <span>🔄</span><span>Upload Another</span>
+        <input type="url" id="paste-video-link" placeholder="https://drive.google.com/file/d/.../view">
+        <button id="btn-load-pasted-link" class="btn btn-secondary" style="width:100%;padding:10px;font-size:0.86rem;">
+          <span>▶</span><span>Load Cloud Video</span>
         </button>
       </div>
 
-      <button id="btn-scanner-launch-ar" class="btn btn-primary">
-        <span class="btn-icon">📷</span>
-        <span>Now Scan with Camera in 3D AR</span>
-      </button>
+      <div class="or-divider"><span>OR UPLOAD MAGIC PHOTO FILE</span></div>
+
+      <!-- Drop Zone for Magic Photo -->
+      <div class="scan-drop-zone" id="scan-drop-box">
+        <div style="font-size:2.6rem;margin-bottom:10px;">🖼️</div>
+        <div style="font-weight:700;color:#fff;margin-bottom:4px;font-size:0.96rem;">Upload Magic AR Photo</div>
+        <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:12px;line-height:1.4;">
+          Upload the Magic Photo generated in Creator — video inside will be extracted and AR tracking compiled.
+        </p>
+        <div class="badge" style="margin-bottom:0;cursor:pointer;">
+          <span>📂</span><span>Tap to browse files</span>
+        </div>
+        <input type="file" id="scan-file-input" accept="image/*" style="display:none">
+      </div>
+
+      <!-- Compile Progress -->
+      <div class="compile-status-box" id="compile-status-box">
+        <div class="compile-label" id="compile-status-text">Compiling AR tracking features...</div>
+        <div class="compile-bar"><div class="compile-fill" id="compile-fill"></div></div>
+      </div>
+
+      <!-- Demo Button -->
+      <div style="text-align:center;margin-top:14px;">
+        <button id="btn-sample-demo" class="studio-btn-link" style="cursor:pointer;background:none;border:none;">
+          <span>🎬</span><span>Try with Sample Photo Demo</span>
+        </button>
+      </div>
+
     </div>
 
-    <!-- Dedicated Install Button Section (Home Screen + App Drawer) -->
-    <div class="photo-card-container" id="install-card" style="margin-top:24px; padding:20px; text-align:center;">
-      <div style="font-size:2rem; margin-bottom:8px;">📲</div>
-      <h3 style="color:#fff; font-size:1.15rem; margin-bottom:6px;">Install App on Phone</h3>
-      <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:16px; line-height:1.45;">
-        Installs this app into your phone's <strong>Home Screen</strong> and <strong>All Apps (sliding menu)</strong>. Even if removed from your home screen, the app stays permanently inside your sliding app drawer!
-      </p>
+    <!-- === CARD 2: VIDEO ACTIVE PLAYER (Plays Scanned / Linked Memory) === -->
+    <div id="scanner-player-card" style="display:none;">
 
-      <button id="btn-install-app" class="btn btn-primary" style="font-size:1.02rem; padding:16px;">
-        <span class="btn-icon">⬇️</span>
-        <span id="install-btn-text">Install App to Phone</span>
+      <div class="tab-video-player-wrap">
+        <div class="player-overlay-tag">
+          <span>🎬</span><span>Memory Loaded</span>
+        </div>
+        <video id="scanner-tab-video" controls autoplay playsinline webkit-playsinline style="width:100%;display:none;"></video>
+        <iframe id="scanner-tab-iframe" src="" style="width:100%;height:320px;border:none;display:none;" allow="autoplay" allowfullscreen></iframe>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div id="scanner-video-title" style="font-weight:700;color:#fff;font-size:1.02rem;"></div>
+          <div id="scanner-video-sub" style="font-size:0.78rem;color:var(--text-gold);"></div>
+        </div>
+        <button id="btn-scan-another" class="studio-btn-link" style="cursor:pointer;background:none;border:none;">
+          <span>🔄</span><span>Scan Another</span>
+        </button>
+      </div>
+
+      <!-- Button to switch to 3D AR Camera -->
+      <button id="btn-scanner-launch-ar" class="btn btn-primary" style="margin-bottom:14px;font-size:1.02rem;padding:16px;">
+        <span class="btn-icon">📷</span>
+        <span>Point Camera & Scan in 3D AR</span>
       </button>
 
-      <div id="install-status-msg" style="display:none; font-size:0.8rem; color:#22c55e; margin-top:12px; font-weight:700;">
-        ✓ App Installed! You can now find AR Scanner on your Home Screen and in your sliding App Drawer.
+      <p style="text-align:center;font-size:0.78rem;color:var(--text-muted);margin-bottom:20px;line-height:1.45;">
+        You can watch the video right here on screen, or tap <strong>Point Camera & Scan</strong> to see it lock onto the physical photograph in 3D!
+      </p>
+
+    </div>
+
+    <!-- Install App Section -->
+    <div class="photo-card-container" id="install-card" style="margin-top:20px;padding:20px;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:8px;">📲</div>
+      <h3 style="color:#fff;font-size:1.05rem;margin-bottom:6px;">Install Scanner App on Phone</h3>
+      <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:14px;line-height:1.4;">
+        Add to your <strong>Home Screen</strong> and <strong>App Drawer</strong> for 1-tap scanning anytime!
+      </p>
+      <button id="btn-install-app" class="btn btn-primary" style="font-size:0.95rem;padding:14px;">
+        <span class="btn-icon">📲</span>
+        <span id="install-btn-text">Install App to Phone</span>
+      </button>
+      <div id="install-status-msg" style="display:none;font-size:0.8rem;color:#22c55e;margin-top:10px;font-weight:700;">
+        ✅ App Installed! Find AR Scanner on your Home Screen.
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer style="text-align:center; margin-top:30px; font-size:0.78rem; color:var(--text-muted);">
-      Living Photo Memory AR • Powered by MindAR WebAR
+    <footer style="text-align:center;margin-top:30px;font-size:0.76rem;color:var(--text-muted);">
+      Living Photo Memory AR · Powered by MindAR WebAR
     </footer>
 
   </main>
 
-  <!-- iOS Install Helper Modal -->
+  <!-- iOS Install Modal -->
   <div id="ios-install-modal" class="guide-modal">
     <div class="guide-card" style="text-align:center;">
-      <div style="font-size:2.4rem; margin-bottom:8px;">📲</div>
-      <h3 style="color:var(--gold-light); font-size:1.2rem; margin-bottom:8px;">Install on iPhone</h3>
-      <p style="color:var(--text-muted); font-size:0.84rem; margin-bottom:18px; line-height:1.45;">
-        Apple Safari allows 1-tap installation using the Share menu:
+      <div style="font-size:2.4rem;margin-bottom:8px;">🍎</div>
+      <h3 style="color:var(--gold-light);font-size:1.2rem;margin-bottom:8px;">Install on iPhone</h3>
+      <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:18px;line-height:1.45;">
+        Use Safari's Share menu to install:
       </p>
-      <div style="background:rgba(212,175,55,0.08); border:1px solid var(--surface-border); border-radius:var(--radius-md); padding:14px; text-align:left; margin-bottom:18px; font-size:0.84rem;">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <div style="background:rgba(212,175,55,0.08);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:14px;text-align:left;margin-bottom:18px;font-size:0.84rem;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <span style="font-size:1.2rem;">1️⃣</span>
           <span>Tap the Safari <strong>Share button</strong> (square with arrow) at the bottom.</span>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:1.2rem;">2️⃣</span>
-          <span>Scroll down and tap <strong>"Add to Home Screen"</strong>.</span>
+          <span>Scroll and tap <strong>"Add to Home Screen"</strong>.</span>
         </div>
       </div>
       <button id="btn-close-ios-modal" class="btn btn-primary">Got it</button>
     </div>
   </div>
 
-  <!-- ========================================================
-       LIVE AR CAMERA VIEWPORT
-       ======================================================== -->
+  <!-- ===== LIVE AR CAMERA VIEWPORT (Transparent Canvas + Visible Camera Video) ===== -->
   <div id="ar-container">
+    <!-- Floating Cinema Overlay for Google Drive Videos in AR -->
+    <div id="ar-gdrive-cinema" class="ar-gdrive-cinema">
+      <div class="ar-cinema-header">
+        <div class="ar-cinema-badge">✨ Photo Detected • Memory Playing</div>
+        <button id="btn-close-gdrive-cinema" class="ar-cinema-close">✕</button>
+      </div>
+      <div class="ar-cinema-body">
+        <iframe id="ar-gdrive-iframe" src="" allow="autoplay" allowfullscreen></iframe>
+      </div>
+    </div>
+
     <div class="ar-overlay">
       <div class="ar-top-bar">
         <button id="btn-exit-ar" class="ar-exit-btn"><span>✕</span><span>Close Scanner</span></button>
@@ -241,13 +367,13 @@
       <div class="ar-bottom-prompt">
         <div class="prompt-pill" id="prompt-pill">
           <span id="prompt-icon">🔍</span>
-          <span id="prompt-text">Point camera at the photo</span>
+          <span id="prompt-text">Point camera at the printed photo</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Permission Modal -->
+  <!-- Camera Permission Guidance Modal -->
   <div id="permission-modal" class="guide-modal">
     <div class="guide-card">
       <div class="guide-title"><span>📷</span><span>Camera Access Needed</span></div>
@@ -255,15 +381,14 @@
         <p>Allow camera permission in your browser to scan photos in Augmented Reality.</p>
         <ol>
           <li><strong>iPhone (Safari):</strong> Tap <code>aA</code> in address bar → Website Settings → Camera: Allow</li>
-          <li><strong>Android (Chrome):</strong> Tap the Lock icon in address bar → Permissions → Camera: Allow</li>
+          <li><strong>Android (Chrome):</strong> Tap Lock icon in address bar → Permissions → Camera: Allow</li>
         </ol>
       </div>
       <button id="btn-modal-close-guide" class="btn btn-primary">Got it</button>
     </div>
   </div>
 
-  <!-- Dedicated Scanner Script -->
-  <script type="module" src="scan.js"></script>
+  <script type="module" src="scan.js?v=20261103_4"></script>
 
 </body>
 </html>

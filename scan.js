@@ -1,38 +1,56 @@
 // ========================================================
-//  Dedicated Scanner App — scan.js (ES Module)
+//  Dedicated Scanner App — scan.js (ES Module) — v3
+//  Supports:
+//  1. URL parameters (?v=... &img=...) from QR scans
+//  2. Google Drive, Dropbox, and direct cloud video streaming
+//  3. Clean MindAR 3D AR camera tracking with alpha transparency
+//  4. Magic Photo upload & embedded/linked video extraction
 // ========================================================
 import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+import { getMediaInfo, resolveCloudVideoUrl, resolveCloudImageUrl } from "./cloud-storage.js";
 
-const MAGIC_SIGNATURE = "AR_MAGIC_V1";
+// ---- Magic Photo Format Constants ----
+const MAGIC_SIGNATURE_V1  = "AR_MAGIC_V1";
+const MAGIC_SIGNATURE_URL = "AR_URL_V1";
 const FOOTER_SIZE = 56;
 
-// State
-let activePhotoDataUrl = null;
-let activeVideoUrl = 'video.mp4'; // fallback to hosted repo video
-let compiledTargetUrl = 'targets.mind'; // fallback to precompiled target
+// ---- State ----
+let activePhotoDataUrl  = null;
+let activeVideoUrl      = null;   // Resolved streamable video URL
+let compiledTargetUrl   = null;   // Blob URL or static path of .mind target
+let isCompiling         = false;
+let compileDone         = false;
 
-let isArRunning = false;
-let isArMuted = true;
-let arScene = null;
-let arAnchor = null;
-let arVideo = null;
-let arVideoMesh = null;
+let isArRunning         = false;
+let isArMuted           = true;
+let isCurrentArGoogleDrive = false;
+let arScene             = null;
+let arAnchor            = null;
+let arVideo             = null;
+let arVideoMesh         = null;
 let textureSyncInterval = null;
 
-// DOM Elements
+// ---- DOM Elements ----
 const btnOpenScanner     = document.getElementById('btn-open-scanner');
 const scanDropBox        = document.getElementById('scan-drop-box');
 const scanFileInput      = document.getElementById('scan-file-input');
 const uploadCard         = document.getElementById('upload-card');
 const scannerPlayerCard  = document.getElementById('scanner-player-card');
 const scannerTabVideo    = document.getElementById('scanner-tab-video');
+const scannerTabIframe   = document.getElementById('scanner-tab-iframe');
 const scannerVideoTitle  = document.getElementById('scanner-video-title');
 const scannerVideoSub    = document.getElementById('scanner-video-sub');
 const btnScanAnother     = document.getElementById('btn-scan-another');
-const btnScannerLaunchAr = document.getElementById('btn-scanner-launch-ar');
+
+const compileStatusBox   = document.getElementById('compile-status-box');
+const compileStatusText  = document.getElementById('compile-status-text');
+const compileFill        = document.getElementById('compile-fill');
 
 const appContainer       = document.getElementById('app-container');
 const arContainer        = document.getElementById('ar-container');
+const arGdriveCinema     = document.getElementById('ar-gdrive-cinema');
+const arGdriveIframe     = document.getElementById('ar-gdrive-iframe');
+const btnCloseGdriveCinema = document.getElementById('btn-close-gdrive-cinema');
 const btnExitAr          = document.getElementById('btn-exit-ar');
 const btnToggleSound     = document.getElementById('btn-toggle-sound');
 const soundIcon          = document.getElementById('sound-icon');
@@ -45,19 +63,24 @@ const permissionModal    = document.getElementById('permission-modal');
 const btnModalCloseGuide = document.getElementById('btn-modal-close-guide');
 const inappBanner        = document.getElementById('inapp-banner');
 
-// PWA Install Elements
 const btnInstallApp      = document.getElementById('btn-install-app');
 const installBtnText     = document.getElementById('install-btn-text');
 const installStatusMsg   = document.getElementById('install-status-msg');
 const iosInstallModal    = document.getElementById('ios-install-modal');
 const btnCloseIosModal   = document.getElementById('btn-close-ios-modal');
 
-let deferredInstallPrompt = null;
+const btnSampleDemo      = document.getElementById('btn-sample-demo');
+const pasteLinkInput     = document.getElementById('paste-video-link');
+const btnLoadPastedLink  = document.getElementById('btn-load-pasted-link');
+
+// All Launch AR buttons in the DOM
+function getLaunchArBtns() {
+  return document.querySelectorAll('#btn-scanner-launch-ar, .btn-launch-ar, #btn-open-scanner');
+}
 
 // ========================================================
-//  PWA INSTALL & SERVICE WORKER SYSTEM
+//  PWA / SERVICE WORKER
 // ========================================================
-// Register Service Worker for true WebAPK / App Drawer support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((err) => {
@@ -66,30 +89,27 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Catch the native PWA install prompt
+let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  if (installBtnText) installBtnText.textContent = '⬇️ Install App (Home & Apps Menu)';
+  if (installBtnText) installBtnText.textContent = '📲 Install App (Home & Apps Menu)';
 });
 
-// Detect if already running as standalone app
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
 if (isStandalone) {
-  if (installBtnText) installBtnText.textContent = '✓ App Installed';
+  if (installBtnText) installBtnText.textContent = '✅ App Installed';
   if (btnInstallApp) btnInstallApp.disabled = true;
   if (installStatusMsg) {
     installStatusMsg.style.display = 'block';
-    installStatusMsg.textContent = '✓ Currently running as an installed standalone app!';
+    installStatusMsg.textContent = '✅ Running as installed app!';
   }
 }
 
-// Handle Install Button Click
 btnInstallApp && btnInstallApp.addEventListener('click', async () => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
   if (deferredInstallPrompt) {
-    // Android / Chrome: Native 1-click install (installs to Home Screen AND App Drawer)
     deferredInstallPrompt.prompt();
     const { outcome } = await deferredInstallPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -98,11 +118,9 @@ btnInstallApp && btnInstallApp.addEventListener('click', async () => {
     }
     deferredInstallPrompt = null;
   } else if (isIOS) {
-    // iOS Safari: Show visual 2-step prompt
     if (iosInstallModal) iosInstallModal.classList.add('active');
   } else {
-    // Desktop / other
-    alert("To install, tap the install icon ⊕ in your browser's address bar or menu!");
+    alert("To install, tap the install icon in your browser's address bar or menu!");
   }
 });
 
@@ -110,108 +128,291 @@ btnCloseIosModal && btnCloseIosModal.addEventListener('click', () => {
   if (iosInstallModal) iosInstallModal.classList.remove('active');
 });
 
-// Check In-App Browser
-(function checkInApp() {
+// ========================================================
+//  INITIALIZATION & URL PARAMETER PARSER (?v=... &img=...)
+// ========================================================
+(async function initScanner() {
   const ua = navigator.userAgent || '';
   if (/(FBAN|FBAV|Instagram|TikTok|MicroMessenger|Line|Twitter|Snapchat)/i.test(ua)) {
     inappBanner && inappBanner.classList.add('active');
   }
 
-  // Check URL parameters for direct autoplay
+  // Check URL parameters from QR scan
   const params = new URLSearchParams(window.location.search);
-  if (params.has('autoplay') || params.has('lens')) {
-    playVideoOnTab('video.mp4', 'Scanned Memory', 'Auto-playing living video');
+  const rawVideoParam = params.get('v') || params.get('video');
+  const rawImageParam = params.get('img') || params.get('photo') || params.get('target');
+
+  if (rawVideoParam) {
+    // QR Code scan contains custom cloud video!
+    const resolvedVideo = resolveCloudVideoUrl(rawVideoParam);
+    activeVideoUrl = resolvedVideo;
+
+    showVideoPlayer(
+      resolvedVideo,
+      "✨ Linked Memory Video",
+      "Playing custom video from scanned link"
+    );
+
+    if (rawImageParam) {
+      const resolvedImg = resolveCloudImageUrl(rawImageParam);
+      activePhotoDataUrl = resolvedImg;
+      await startCompileTargets(resolvedImg);
+    } else {
+      // Default to repo's compiled targets if available, or prompt user
+      compiledTargetUrl = 'targets.mind';
+      compileDone = true;
+      updateScanButtonState();
+    }
+  } else {
+    updateScanButtonState();
   }
 })();
 
 // ========================================================
-//  1. PHOTO UPLOAD & UNPACKING (Playing video from photo)
+//  COMPILE STATE MANAGEMENT
 // ========================================================
-scanDropBox.addEventListener('click', () => scanFileInput.click());
-scanFileInput.addEventListener('change', (e) => {
-  if (e.target.files && e.target.files[0]) handleUploadedPhoto(e.target.files[0]);
-});
+function updateScanButtonState() {
+  const btns = getLaunchArBtns();
+  btns.forEach((btn) => {
+    const labelSpan = btn.querySelector('span:last-child') || btn;
+    if (isCompiling) {
+      btn.disabled = true;
+      labelSpan.textContent = 'Compiling AR Tracking... Please Wait';
+      if (compileStatusBox) compileStatusBox.style.display = 'block';
+    } else if (compileDone) {
+      btn.disabled = false;
+      labelSpan.textContent = 'Point Camera & Scan in 3D AR';
+      if (compileStatusBox) compileStatusBox.style.display = 'none';
+    } else {
+      btn.disabled = false;
+      labelSpan.textContent = 'Open Camera Scanner';
+      if (compileStatusBox) compileStatusBox.style.display = 'none';
+    }
+  });
+}
 
-setupDragDrop(scanDropBox, handleUploadedPhoto);
-
-async function handleUploadedPhoto(file) {
-  if (!file.type.startsWith('image/')) {
-    alert('Please select an image file.');
+// ========================================================
+//  PASTE VIDEO LINK HANDLER (GOOGLE DRIVE / DIRECT LINK)
+// ========================================================
+btnLoadPastedLink && btnLoadPastedLink.addEventListener('click', () => {
+  const raw = pasteLinkInput ? pasteLinkInput.value.trim() : '';
+  if (!raw) {
+    alert('Please paste a Google Drive or video URL.');
     return;
   }
+
+  const media = getMediaInfo(raw);
+  if (!media) {
+    alert('Could not recognize this URL format.');
+    return;
+  }
+
+  activeVideoUrl = raw;
+  compiledTargetUrl = compiledTargetUrl || 'targets.mind';
+  compileDone = true;
+
+  showVideoPlayer(raw, media.isGoogleDrive ? '☁️ Google Drive Video' : '☁️ Cloud Video Loaded', 'Playing from linked URL');
+  updateScanButtonState();
+});
+
+// ========================================================
+//  PHOTO UPLOAD — MAGIC PHOTO OR REGULAR PHOTO
+// ========================================================
+scanDropBox && scanDropBox.addEventListener('click', () => scanFileInput && scanFileInput.click());
+scanFileInput && scanFileInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handlePhotoUpload(e.target.files[0]);
+});
+
+setupDragDrop(scanDropBox, handlePhotoUpload);
+
+async function handlePhotoUpload(file) {
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload an image file.');
+    return;
+  }
+
+  compileDone = false;
+  activePhotoDataUrl = null;
+  activeVideoUrl = null;
+  compiledTargetUrl = null;
+  updateScanButtonState();
 
   try {
     const extracted = await unpackMagicPhoto(file);
 
-    if (extracted && extracted.videoBlob) {
-      // SUCCESS: Embedded video extracted directly from photo!
-      activeVideoUrl = URL.createObjectURL(extracted.videoBlob);
-      activePhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
-
-      // Pre-compile AR target in background for seamless camera scanning
-      compileTargetInMemory(activePhotoDataUrl);
-
-      // Play video directly on screen
-      playVideoOnTab(activeVideoUrl, file.name, "✨ Embedded video unlocked & playing!");
+    if (extracted) {
+      if (extracted.videoBlob) {
+        activeVideoUrl = URL.createObjectURL(extracted.videoBlob);
+        activePhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
+        showVideoPlayer(activeVideoUrl, file.name, '✨ Embedded video detected!');
+      } else if (extracted.videoUrl) {
+        const streamUrl = resolveCloudVideoUrl(extracted.videoUrl);
+        activeVideoUrl = streamUrl;
+        activePhotoDataUrl = await fileToDataUrl(extracted.photoBlob || file);
+        showVideoPlayer(activeVideoUrl, file.name, '☁️ Linked cloud video detected!');
+      }
     } else {
-      // Standard image: use paired video
       activePhotoDataUrl = await fileToDataUrl(file);
-      compileTargetInMemory(activePhotoDataUrl);
-      playVideoOnTab(activeVideoUrl, file.name, "Playing paired video on this photo");
+      activeVideoUrl = activeVideoUrl || 'video.mp4';
+      showVideoPlayer(activeVideoUrl, file.name, '📷 Photo loaded — camera scan ready');
     }
+
+    await startCompileTargets(activePhotoDataUrl);
+
   } catch (err) {
-    console.error("Photo processing error:", err);
-    alert("Could not process photo: " + err.message);
+    console.error('Photo upload error:', err);
+    alert('Could not process photo: ' + err.message);
   }
 }
 
-function playVideoOnTab(src, title, subtitle) {
-  uploadCard.style.display = 'none';
-  scannerPlayerCard.style.display = 'block';
+function showVideoPlayer(videoSrc, title, subtitle) {
+  if (uploadCard) uploadCard.style.display = 'none';
+  if (scannerPlayerCard) scannerPlayerCard.style.display = 'block';
+  if (scannerVideoTitle) scannerVideoTitle.textContent = title || 'Living Memory';
+  if (scannerVideoSub) scannerVideoSub.textContent = subtitle || '';
 
-  scannerTabVideo.src = src;
-  scannerVideoTitle.textContent = title || "Living Memory";
-  scannerVideoSub.textContent = subtitle || "Playing video";
-
-  scannerTabVideo.muted = false;
-  scannerTabVideo.play().catch(() => {
-    scannerTabVideo.muted = true;
-    scannerTabVideo.play().catch(() => {});
-  });
+  const media = getMediaInfo(videoSrc);
+  if (media && media.isGoogleDrive) {
+    if (scannerTabVideo) {
+      scannerTabVideo.pause();
+      scannerTabVideo.style.display = 'none';
+    }
+    if (scannerTabIframe) {
+      scannerTabIframe.src = media.embedUrl;
+      scannerTabIframe.style.display = 'block';
+    }
+  } else {
+    if (scannerTabIframe) {
+      scannerTabIframe.src = '';
+      scannerTabIframe.style.display = 'none';
+    }
+    if (scannerTabVideo) {
+      scannerTabVideo.style.display = 'block';
+      scannerTabVideo.src = (media ? media.streamUrl : videoSrc);
+      scannerTabVideo.crossOrigin = 'anonymous';
+      scannerTabVideo.muted = false;
+      scannerTabVideo.play().catch(() => {
+        scannerTabVideo.muted = true;
+        scannerTabVideo.play().catch(() => {});
+      });
+    }
+  }
 }
 
-btnScanAnother.addEventListener('click', () => {
-  scannerTabVideo.pause();
-  scannerTabVideo.src = '';
-  scannerPlayerCard.style.display = 'none';
-  uploadCard.style.display = 'block';
-  scanFileInput.value = '';
+btnScanAnother && btnScanAnother.addEventListener('click', () => {
+  if (scannerTabVideo) { scannerTabVideo.pause(); scannerTabVideo.src = ''; }
+  if (scannerTabIframe) { scannerTabIframe.src = ''; }
+  if (scannerPlayerCard) scannerPlayerCard.style.display = 'none';
+  if (uploadCard) uploadCard.style.display = 'block';
+  if (scanFileInput) scanFileInput.value = '';
+  compileDone = false;
+  activePhotoDataUrl = null;
+  activeVideoUrl = null;
+  compiledTargetUrl = null;
+  updateScanButtonState();
 });
 
 // ========================================================
-//  2. LIVE AR CAMERA SCANNER
+//  AR TARGET COMPILER
 // ========================================================
-btnOpenScanner.addEventListener('click', startScannerAR);
-btnScannerLaunchAr.addEventListener('click', startScannerAR);
+async function startCompileTargets(photoDataUrl) {
+  isCompiling = true;
+  compileDone = false;
+  updateScanButtonState();
 
-async function startScannerAR() {
+  if (compileFill) compileFill.style.width = '10%';
+  if (compileStatusText) compileStatusText.textContent = 'Analyzing photo for 3D tracking...';
+
   try {
-    buildDynamicArScene(compiledTargetUrl, activeVideoUrl);
+    const compiler = new Compiler();
+    const img = new Image();
+    img.src = photoDataUrl;
+    img.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+
+    if (compileFill) compileFill.style.width = '25%';
+    if (compileStatusText) compileStatusText.textContent = 'Compiling AR tracking features...';
+
+    await compiler.compileImageTargets([img], (pct) => {
+      const w = Math.round(25 + pct * 0.7);
+      if (compileFill) compileFill.style.width = `${w}%`;
+      if (compileStatusText) compileStatusText.textContent = `Compiling AR features: ${Math.round(pct)}%`;
+    });
+
+    const buffer = await compiler.exportData();
+    if (compiledTargetUrl && compiledTargetUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(compiledTargetUrl);
+    }
+    compiledTargetUrl = URL.createObjectURL(new Blob([buffer]));
+
+    if (compileFill) compileFill.style.width = '100%';
+    if (compileStatusText) compileStatusText.textContent = '✅ AR tracking ready! Tap "Point Camera & Scan".';
+
+    compileDone = true;
+    isCompiling = false;
+    updateScanButtonState();
+
+  } catch (err) {
+    console.warn('Compile note, using fallback targets.mind:', err);
+    compiledTargetUrl = 'targets.mind';
+    compileDone = true;
+    isCompiling = false;
+    updateScanButtonState();
+  }
+}
+
+// ========================================================
+//  SAMPLE DEMO BUTTON
+// ========================================================
+btnSampleDemo && btnSampleDemo.addEventListener('click', async () => {
+  activeVideoUrl = 'video.mp4';
+  compiledTargetUrl = 'targets.mind';
+  compileDone = true;
+
+  showVideoPlayer('video.mp4', 'Sample Living Photo', '🎬 Point camera at photo.jpg');
+  updateScanButtonState();
+});
+
+// ========================================================
+//  CAMERA AR LAUNCHER — PROPER A-FRAME TRANSPARENCY
+// ========================================================
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('#btn-scanner-launch-ar, .btn-launch-ar, #btn-open-scanner');
+  if (target) {
+    e.preventDefault();
+    startLiveAR();
+  }
+});
+
+async function startLiveAR() {
+  if (isCompiling) {
+    alert('Please wait — AR tracking compilation is in progress...');
+    return;
+  }
+
+  const targetUrl = compiledTargetUrl || 'targets.mind';
+  const videoSrc  = activeVideoUrl || 'video.mp4';
+
+  try {
+    buildDynamicArScene(targetUrl, videoSrc);
 
     appContainer.style.display = 'none';
     arContainer.classList.add('active');
     isArRunning = true;
 
     const scene = document.getElementById('ar-scene');
+
     const startTracking = async () => {
-      arScene = scene;
-      arAnchor = document.getElementById('ar-anchor');
-      arVideo = document.getElementById('ar-video-asset');
+      arScene     = scene;
+      arAnchor    = document.getElementById('ar-anchor');
+      arVideo     = document.getElementById('ar-video-asset');
       arVideoMesh = document.getElementById('ar-video-mesh');
 
-      // Audio unlock gesture
-      arVideo.muted = true;
-      arVideo.play().then(() => { arVideo.pause(); arVideo.currentTime = 0; }).catch(() => {});
+      // Pre-warm video and unlock audio context
+      if (arVideo) {
+        arVideo.muted = true;
+        arVideo.play().then(() => { arVideo.pause(); arVideo.currentTime = 0; }).catch(() => {});
+      }
 
       const mindarSystem = scene.systems['mindar-image-system'];
       if (mindarSystem) {
@@ -228,30 +429,44 @@ async function startScannerAR() {
     }
 
   } catch (err) {
-    console.error('AR start error:', err);
+    console.error('AR camera start error:', err);
     exitArMode();
-    permissionModal.classList.add('active');
+    if (permissionModal) permissionModal.classList.add('active');
   }
 }
 
+// ========================================================
+//  BUILD DYNAMIC AR SCENE WITH TRANSPARENT CANVAS
+// ========================================================
 function buildDynamicArScene(targetSrc, videoSrc) {
   const old = document.getElementById('ar-scene');
   if (old) old.remove();
 
+  const media = getMediaInfo(videoSrc);
+  isCurrentArGoogleDrive = !!(media && media.isGoogleDrive);
+
+  if (isCurrentArGoogleDrive && arGdriveIframe) {
+    arGdriveIframe.src = media.embedUrl;
+  }
+
   const scene = document.createElement('a-scene');
   scene.id = 'ar-scene';
+  // Crucial: MindAR image configuration + transparent renderer
   scene.setAttribute('mindar-image',
-    `imageTargetSrc: ${targetSrc}; autoStart: false; uiLoading: no; uiScanning: no;`);
+    `imageTargetSrc: ${targetSrc}; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 5;`);
   scene.setAttribute('color-space', 'sRGB');
-  scene.setAttribute('embedded', '');
-  scene.setAttribute('renderer', 'colorManagement: true, physicallyCorrectLights');
+  scene.setAttribute('renderer', 'colorManagement: true; physicallyCorrectLights: true; alpha: true;');
   scene.setAttribute('vr-mode-ui', 'enabled: false');
   scene.setAttribute('device-orientation-permission-ui', 'enabled: false');
 
+  // Video Asset Element (only for direct streamable videos)
   const assets = document.createElement('a-assets');
   const vid = document.createElement('video');
   vid.id = 'ar-video-asset';
-  vid.src = videoSrc;
+  if (!isCurrentArGoogleDrive) {
+    vid.src = (media ? media.streamUrl : videoSrc);
+    vid.crossOrigin = 'anonymous';
+  }
   vid.setAttribute('preload', 'auto');
   vid.setAttribute('playsinline', '');
   vid.setAttribute('webkit-playsinline', '');
@@ -260,21 +475,30 @@ function buildDynamicArScene(targetSrc, videoSrc) {
   assets.appendChild(vid);
   scene.appendChild(assets);
 
+  // Camera
   const cam = document.createElement('a-camera');
   cam.setAttribute('position', '0 0 0');
   cam.setAttribute('look-controls', 'enabled: false');
   scene.appendChild(cam);
 
+  // Target Anchor Entity
   const anchor = document.createElement('a-entity');
   anchor.id = 'ar-anchor';
   anchor.setAttribute('mindar-image-target', 'targetIndex: 0');
 
-  const mesh = document.createElement('a-video');
+  // Video Plane in 3D AR
+  const mesh = document.createElement('a-plane');
   mesh.id = 'ar-video-mesh';
-  mesh.setAttribute('src', '#ar-video-asset');
+  if (!isCurrentArGoogleDrive) {
+    mesh.setAttribute('src', '#ar-video-asset');
+    mesh.setAttribute('material', 'shader: flat; transparent: true;');
+  } else {
+    mesh.setAttribute('visible', 'false');
+  }
   mesh.setAttribute('position', '0 0 0');
   mesh.setAttribute('width', '1');
   mesh.setAttribute('height', '1');
+  mesh.setAttribute('rotation', '0 0 0');
   anchor.appendChild(mesh);
   scene.appendChild(anchor);
 
@@ -282,26 +506,43 @@ function buildDynamicArScene(targetSrc, videoSrc) {
 }
 
 function registerAnchorEvents() {
-  arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
+  if (!arAnchor) return;
+  if (arVideo && !isCurrentArGoogleDrive) {
+    arVideo.addEventListener('loadedmetadata', adjustVideoMesh);
+  }
 
   arAnchor.addEventListener('targetFound', () => {
-    arVideo.muted = isArMuted;
-    arVideo.play().catch(() => {});
-    promptPill.classList.add('target-detected');
-    promptIcon.textContent = '✨';
-    promptText.textContent = 'Memory Playing!';
-    scanLaser.style.display = 'none';
-    if (isArMuted) tapUnmutePill.classList.add('active');
+    if (isCurrentArGoogleDrive) {
+      if (arGdriveCinema) arGdriveCinema.classList.add('active');
+    } else if (arVideo) {
+      arVideo.muted = isArMuted;
+      arVideo.play().catch(() => {});
+    }
+    if (promptPill) promptPill.classList.add('target-detected');
+    if (promptIcon) promptIcon.textContent = '✨';
+    if (promptText) promptText.textContent = 'Memory Playing!';
+    if (scanLaser) scanLaser.style.display = 'none';
+    if (!isCurrentArGoogleDrive && isArMuted && tapUnmutePill) tapUnmutePill.classList.add('active');
   });
 
   arAnchor.addEventListener('targetLost', () => {
-    arVideo.pause();
-    promptPill.classList.remove('target-detected');
-    promptIcon.textContent = '🔍';
-    promptText.textContent = 'Point camera at the photo';
-    scanLaser.style.display = 'block';
-    tapUnmutePill.classList.remove('active');
+    if (isCurrentArGoogleDrive) {
+      if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+    } else if (arVideo) {
+      arVideo.pause();
+    }
+    if (promptPill) promptPill.classList.remove('target-detected');
+    if (promptIcon) promptIcon.textContent = '🔍';
+    if (promptText) promptText.textContent = 'Point camera at the photo';
+    if (scanLaser) scanLaser.style.display = 'block';
+    if (tapUnmutePill) tapUnmutePill.classList.remove('active');
   });
+
+  if (btnCloseGdriveCinema) {
+    btnCloseGdriveCinema.onclick = () => {
+      if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+    };
+  }
 }
 
 function adjustVideoMesh() {
@@ -329,7 +570,9 @@ function exitArMode() {
   if (!isArRunning) return;
   if (textureSyncInterval) { clearInterval(textureSyncInterval); textureSyncInterval = null; }
   if (arVideo) arVideo.pause();
-  tapUnmutePill.classList.remove('active');
+  if (arGdriveCinema) arGdriveCinema.classList.remove('active');
+  if (arGdriveIframe) arGdriveIframe.src = '';
+  if (tapUnmutePill) tapUnmutePill.classList.remove('active');
 
   if (arScene) {
     const sys = arScene.systems['mindar-image-system'];
@@ -341,35 +584,25 @@ function exitArMode() {
   isArRunning = false;
 }
 
-btnExitAr.addEventListener('click', exitArMode);
+btnExitAr && btnExitAr.addEventListener('click', exitArMode);
 
-// Audio controls
 function setArAudio(unmute) {
   isArMuted = !unmute;
   if (arVideo) arVideo.muted = isArMuted;
-  soundIcon.textContent = isArMuted ? '🔇' : '🔊';
-  if (!isArMuted) tapUnmutePill.classList.remove('active');
+  if (soundIcon) soundIcon.textContent = isArMuted ? '🔇' : '🔊';
+  if (!isArMuted && tapUnmutePill) tapUnmutePill.classList.remove('active');
 }
 
-btnToggleSound.addEventListener('click', () => setArAudio(isArMuted));
-tapUnmutePill.addEventListener('click', () => setArAudio(true));
+btnToggleSound && btnToggleSound.addEventListener('click', () => setArAudio(isArMuted));
+tapUnmutePill && tapUnmutePill.addEventListener('click', () => setArAudio(true));
 
-// Background compiler helper
-async function compileTargetInMemory(dataUrl) {
-  try {
-    const compiler = new Compiler();
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-    await compiler.compileImageTargets([img]);
-    const buffer = await compiler.exportData();
-    compiledTargetUrl = URL.createObjectURL(new Blob([buffer]));
-  } catch (e) {
-    console.warn("Background target compile note:", e);
-  }
-}
+btnModalCloseGuide && btnModalCloseGuide.addEventListener('click', () => {
+  if (permissionModal) permissionModal.classList.remove('active');
+});
 
-// Unpack Polyglot Video
+// ========================================================
+//  MAGIC PHOTO UNPACK (V1 BINARY + V2 URL)
+// ========================================================
 async function unpackMagicPhoto(file) {
   const buffer = await file.arrayBuffer();
   if (buffer.byteLength < FOOTER_SIZE + 10) return null;
@@ -378,30 +611,40 @@ async function unpackMagicPhoto(file) {
   const footerBuffer = buffer.slice(totalLen - FOOTER_SIZE, totalLen);
   const textDecoder = new TextDecoder('ascii');
 
-  const sig = textDecoder.decode(footerBuffer.slice(40, 56)).trim();
-  if (sig === MAGIC_SIGNATURE) {
-    const mime = textDecoder.decode(footerBuffer.slice(0, 32)).trim();
-    const view = new DataView(footerBuffer);
-    const videoLen = Number(view.getBigUint64(32, false));
+  const sig  = textDecoder.decode(footerBuffer.slice(40, 56)).trim();
+  const mime = textDecoder.decode(footerBuffer.slice(0, 32)).trim();
+  const view = new DataView(footerBuffer);
+  const dataLen = Number(view.getBigUint64(32, false));
 
-    if (videoLen > 0 && totalLen >= FOOTER_SIZE + videoLen) {
-      const videoStart = totalLen - FOOTER_SIZE - videoLen;
-      const videoBytes = buffer.slice(videoStart, totalLen - FOOTER_SIZE);
-      const photoBytes = buffer.slice(0, videoStart);
+  if (dataLen > 0 && totalLen >= FOOTER_SIZE + dataLen) {
+    const dataStart = totalLen - FOOTER_SIZE - dataLen;
+    const dataBytes = buffer.slice(dataStart, totalLen - FOOTER_SIZE);
+    const photoBytes = buffer.slice(0, dataStart);
 
+    if (sig === MAGIC_SIGNATURE_V1) {
       return {
         photoBlob: new Blob([photoBytes], { type: 'image/png' }),
-        videoBlob: new Blob([videoBytes], { type: mime || 'video/mp4' })
+        videoBlob: new Blob([dataBytes], { type: mime || 'video/mp4' }),
+        videoUrl: null
+      };
+    }
+
+    if (sig === MAGIC_SIGNATURE_URL) {
+      const videoUrl = new TextDecoder('utf-8').decode(dataBytes).trim();
+      return {
+        photoBlob: new Blob([photoBytes], { type: 'image/jpeg' }),
+        videoBlob: null,
+        videoUrl: videoUrl
       };
     }
   }
+
   return null;
 }
 
 // Utilities
-btnModalCloseGuide.addEventListener('click', () => permissionModal.classList.remove('active'));
-
 function setupDragDrop(elem, fileHandler) {
+  if (!elem) return;
   elem.addEventListener('dragover', (e) => { e.preventDefault(); elem.classList.add('dragover'); });
   elem.addEventListener('dragleave', () => elem.classList.remove('dragover'));
   elem.addEventListener('drop', (e) => {

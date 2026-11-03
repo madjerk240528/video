@@ -140,14 +140,18 @@
       <p class="subtitle">Turn any photo into a magical video memory that plays when scanned or opened.</p>
     </header>
 
-    <!-- Navigation: Creator vs Separate Scanner App -->
+    <!-- Navigation: Creator vs Studio vs Scanner App -->
     <nav class="nav-tabs">
       <button class="tab-btn active" style="cursor:default;">
         <span class="tab-icon">🪄</span>
         <span>Create AR Photo</span>
       </button>
+      <a href="studio.html" class="tab-btn" style="text-decoration:none;">
+        <span class="tab-icon">🖨️</span>
+        <span>Print Studio</span>
+      </a>
       <a href="scan.html" class="tab-btn" style="text-decoration:none;">
-        <span class="tab-icon">👁️</span>
+        <span class="tab-icon">📷</span>
         <span>Scanner App ➔</span>
       </a>
     </nav>
@@ -179,16 +183,23 @@
             <input type="file" id="create-photo-input" accept="image/*" style="display:none">
           </div>
 
-          <!-- Column 2: Video (Mandatory) -->
+          <!-- Column 2: Video (File Upload OR Google Drive Link) -->
           <div class="upload-col-box" id="create-video-box">
             <span class="mandatory-badge">* Mandatory</span>
             <span class="status-badge">✓ Selected</span>
             <div class="col-icon">🎬</div>
-            <div class="col-title">2. Upload Video</div>
-            <div class="col-desc">MP4, MOV, WebM format</div>
+            <div class="col-title">2. Choose Video</div>
+            <div class="col-desc">Upload file OR paste Google Drive link</div>
             <video class="media-thumb" id="create-video-thumb" muted playsinline></video>
+            <iframe id="create-video-iframe" class="media-thumb" src="" allow="autoplay" allowfullscreen style="display:none; width:100%; height:120px; border:1px solid rgba(212,175,55,0.4); border-radius:8px; margin-top:8px;"></iframe>
             <div class="col-info" id="create-video-info"></div>
             <input type="file" id="create-video-input" accept="video/*" style="display:none">
+            <div style="margin-top:10px; width:100%;" onclick="event.stopPropagation()">
+              <input type="url" id="create-video-url-input" placeholder="Paste Google Drive or Video link" style="width:100%; background:rgba(0,0,0,0.6); border:1px solid var(--surface-border); border-radius:6px; padding:6px 10px; color:#fff; font-size:0.75rem;">
+              <div id="drive-access-hint" style="font-size:0.68rem; color:var(--text-gold); margin-top:5px; text-align:left; display:none;">
+                ℹ️ Ensure Drive link is: <strong>Anyone with link can view</strong>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -214,9 +225,9 @@
         <div class="info-card" style="margin-top:22px;">
           <div class="info-header"><span>💡</span><span>How the Magic Works:</span></div>
           <ul class="info-list">
-            <li><span class="step-num">1</span><span>Upload your photo and video above, then tap <strong>Generate</strong>.</span></li>
+            <li><span class="step-num">1</span><span>Upload your photo and video (or paste Google Drive link), then tap <strong>Generate</strong>.</span></li>
             <li><span class="step-num">2</span><span>Download the resulting photo to print or send to friends.</span></li>
-            <li><span class="step-num">3</span><span>When opened or scanned with <strong>View / Scan</strong>, the embedded video automatically plays!</span></li>
+            <li><span class="step-num">3</span><span>When opened or scanned with <strong>View / Scan</strong>, your custom video automatically plays!</span></li>
           </ul>
         </div>
       </div>
@@ -231,7 +242,7 @@
             </div>
             <h3 style="color:var(--gold-light); font-size:1.3rem; margin-bottom:4px;">Your Photo is Ready!</h3>
             <p style="color:var(--text-muted); font-size:0.82rem;">
-              This photo contains your video embedded inside. Send it to anyone or print it!
+              This photo is paired with your video. You can download it, print it in Studio with a QR code, or share the direct link!
             </p>
           </div>
 
@@ -245,21 +256,32 @@
           <div class="action-grid" style="margin-bottom:0;">
             <a id="btn-download-result" class="btn btn-primary" download="magic-photo.png" style="text-decoration:none;">
               <span class="btn-icon">⬇️</span>
-              <span>Download Photo (to send)</span>
+              <span>Download Magic Photo</span>
             </a>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <a href="studio.html" class="btn btn-secondary" style="flex:1; min-width:130px; text-decoration:none; justify-content:center;">
+                <span class="btn-icon">🖨️</span>
+                <span>Print in Studio</span>
+              </a>
+              <button id="btn-copy-result-link" class="btn btn-secondary" style="flex:1; min-width:130px;">
+                <span class="btn-icon">📋</span>
+                <span>Copy Share Link</span>
+              </button>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
               <button id="btn-test-result-video" class="btn btn-secondary" style="flex:1; min-width:130px;">
                 <span class="btn-icon">▶</span>
                 <span>Test Video</span>
               </button>
               <a href="scan.html" class="btn btn-secondary" style="flex:1; min-width:130px; border-color:var(--gold-primary); text-decoration:none; justify-content:center;">
-                <span class="btn-icon">👁️</span>
+                <span class="btn-icon">📷</span>
                 <span>Open Scanner App ➔</span>
               </a>
             </div>
 
-            <button id="btn-create-reset" class="studio-btn-link" style="justify-content:center; padding:10px; margin-top:6px; cursor:pointer; background:none;">
+            <button id="btn-create-reset" class="studio-btn-link" style="justify-content:center; padding:10px; margin-top:8px; cursor:pointer; background:none;">
               <span>🔄</span><span>Create Another AR Photo</span>
             </button>
           </div>
@@ -294,7 +316,8 @@
           <div class="player-overlay-tag">
             <span>✨</span><span>Memory Playing</span>
           </div>
-          <video id="view-tab-video" controls autoplay playsinline webkit-playsinline></video>
+          <video id="view-tab-video" controls autoplay playsinline webkit-playsinline style="width:100%;display:none;"></video>
+          <iframe id="view-tab-iframe" src="" style="width:100%;height:300px;border:none;display:none;" allow="autoplay" allowfullscreen></iframe>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -340,6 +363,17 @@
        LIVE AR CAMERA VIEWPORT (MindAR + A-Frame)
        ======================================================== -->
   <div id="ar-container">
+    <!-- Floating Cinema Overlay for Google Drive Videos in AR -->
+    <div id="ar-gdrive-cinema" class="ar-gdrive-cinema">
+      <div class="ar-cinema-header">
+        <div class="ar-cinema-badge">✨ Photo Detected • Memory Playing</div>
+        <button id="btn-close-gdrive-cinema" class="ar-cinema-close">✕</button>
+      </div>
+      <div class="ar-cinema-body">
+        <iframe id="ar-gdrive-iframe" src="" allow="autoplay" allowfullscreen></iframe>
+      </div>
+    </div>
+
     <div class="ar-overlay">
       <div class="ar-top-bar">
         <button id="btn-exit-ar" class="ar-exit-btn"><span>✕</span><span>Close AR</span></button>
@@ -370,11 +404,17 @@
     <div class="modal-content">
       <button id="btn-close-modal" class="modal-close-btn">✕</button>
       <div class="modal-video-container">
-        <video id="modal-video-player" controls playsinline webkit-playsinline></video>
+        <video id="modal-video-player" controls playsinline webkit-playsinline style="width:100%;height:100%;display:none;"></video>
+        <iframe id="modal-video-iframe" src="" style="width:100%;height:100%;border:none;display:none;" allow="autoplay" allowfullscreen></iframe>
       </div>
       <div class="modal-body">
-        <h3>Embedded Video Preview</h3>
-        <p>This is the video that plays when the photo is opened or scanned.</p>
+        <h3 id="modal-video-title">Embedded Video Preview</h3>
+        <p id="modal-video-subtitle">This is the video that plays when the photo is opened or scanned.</p>
+        <div id="modal-gdrive-links" style="margin-top:10px; display:none;">
+          <a id="modal-open-drive-link" href="#" target="_blank" rel="noopener noreferrer" style="color:var(--gold-vivid); font-size:0.8rem; text-decoration:underline; font-weight:600;">
+            Open directly in Google Drive ↗
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -395,7 +435,7 @@
   </div>
 
   <!-- Main ES Module Script -->
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=20261103_4"></script>
 
 </body>
 </html>
